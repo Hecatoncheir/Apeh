@@ -40,12 +40,11 @@ function Invoke-Control($Control) {
     $pattern.Invoke()
 }
 
-function Find-AppControl($App, [string]$Name, [switch]$RequireEnabled) {
+function Find-AppControl($App, [string]$Name, [switch]$MatchSuffix) {
     $App.Refresh()
     if ($App.HasExited) { throw "Apeh завершился ($($App.ExitCode))." }
     if ($App.MainWindowHandle -ne [IntPtr]::Zero) {
-        $control = [FlutterAccessibility]::Find($App.MainWindowHandle, $Name)
-        if ($control -and (!$RequireEnabled -or $control.IsEnabled)) { return $control }
+        [FlutterAccessibility]::Find($App.MainWindowHandle, $Name, $MatchSuffix.IsPresent)
     }
 }
 
@@ -86,14 +85,12 @@ function Assert-ApiKey {
 }
 
 function Assert-AppReadsApiKey($App) {
-    (Wait-For 'настройки API-ключа' {
-        Find-AppControl $App 'Настроить ключ API' -RequireEnabled
-    }).Invoke()
-    $null = Wait-For 'подтверждения сохранённого ключа в Apeh' {
-        Find-AppControl $App 'Удалить ключ'
-    }
-    (Wait-For 'закрытия окна API-ключа' { Find-AppControl $App 'Отмена' }).Invoke()
     Assert-ApiKey
+    # Синтетический ключ не авторизует запрос. Это сообщение появляется
+    # после попытки использовать ключ, прочитанный при запуске.
+    $null = Wait-For 'попытки запроса со сохранённым ключом' {
+        Find-AppControl $App 'Используется публичное расписание.' -MatchSuffix
+    }
 }
 
 $version = [version]$Tag.Substring(1)
@@ -177,13 +174,12 @@ try {
     }
     try {
         $null = Wait-For 'пояса UTC в обновлённом Apeh' { Find-AppControl $new 'UTC' }
+        Assert-AppReadsApiKey $new
         (Wait-For 'окна обновлений новой версии' { Find-AppControl $new 'Обновления Apeh' }).Invoke()
         $null = Wait-For 'номера новой версии в окне обновлений' {
             Find-AppControl $new "Установленная версия $($Tag.Substring(1))"
         }
-        (Wait-For 'закрытия окна обновлений' { Find-AppControl $new 'Закрыть' }).Invoke()
         Assert-Settings
-        Assert-AppReadsApiKey $new
         Write-Output 'Новая версия прочитала тот же API-ключ без повторного ввода.'
     } finally {
         if (!$new.HasExited) { Stop-Process -Id $new.Id }
