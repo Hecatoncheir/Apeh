@@ -8,12 +8,14 @@ const dialogContent = document.querySelector('#dialog-content');
 const toast = document.querySelector('#toast');
 
 const minute = 60_000;
-const formatNumber = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
-const formatDecimal = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const t = apehLanguage.translate;
+let formatNumber;
+let formatDecimal;
+let clock;
 const storageKey = 'apeh.prototype.preferences';
 const preferences = readPreferences();
 zoneSelect.value = preferences.zone;
-let clock = createClock();
+setFormatters();
 const started = Date.now();
 let activeTab;
 let shownSlots = [];
@@ -50,8 +52,12 @@ function savePreferences() {
   }
 }
 
-function createClock() {
-  return new Intl.DateTimeFormat('ru-RU', {
+function setFormatters() {
+  const locale = apehLanguage.locale;
+  formatNumber = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+  formatDecimal = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  clock = new Intl.DateTimeFormat(locale, {
+    hourCycle: 'h23',
     hour: '2-digit',
     minute: '2-digit',
     timeZone: preferences.zone === 'local' ? undefined : preferences.zone,
@@ -63,14 +69,14 @@ function icon(name) {
 }
 
 function heading(title, description, control = '') {
-  return `<header class="screen-head"><div><h1 id="screen-title">${title}</h1><p>${description}</p></div>${control}</header>`;
+  return `<header class="screen-head"><div><h1 id="screen-title">${t(title)}</h1><p>${t(description)}</p></div>${control}</header>`;
 }
 
 function selectField(id, label, options, selected, values = options.map((_, index) => index)) {
   const markup = options.map((name, index) =>
-    `<option value="${values[index]}" ${values[index] === selected ? 'selected' : ''}>${name}</option>`,
+    `<option value="${values[index]}" ${values[index] === selected ? 'selected' : ''}>${t(name)}</option>`,
   ).join('');
-  return `<label class="field" for="${id}">${label}<select id="${id}">${markup}</select></label>`;
+  return `<label class="field" for="${id}">${t(label)}<select id="${id}">${markup}</select></label>`;
 }
 
 function bindSelect(id, update) {
@@ -84,7 +90,7 @@ function showTab() {
   const hash = location.hash.slice(1);
   activeTab = Object.hasOwn(tabs, hash) ? hash : 'maps';
   const tab = tabs[activeTab];
-  document.title = `${tab.title} — Apeh`;
+  document.title = `${t(tab.title)} — Apeh`;
   mapTools.hidden = activeTab !== 'maps';
   for (const link of document.querySelectorAll('[data-tab]')) {
     if (link.dataset.tab === activeTab) link.setAttribute('aria-current', 'page');
@@ -121,19 +127,19 @@ function renderMaps() {
   shownSlots = rotations.map(mode => getSlot(mode, now));
   const cards = rotations.map((mode, index) => {
     const slot = shownSlots[index];
-    const variant = slot.current.variant ? `Сейчас · ${slot.current.variant}` : 'Сейчас';
+    const variant = [t('Сейчас'), slot.current.variant && t(slot.current.variant)].filter(Boolean).join(' · ');
     return `<article class="map-card">
       <div class="map-current">
         <img class="map-image" src="https://apexlegendsstatus.com/assets/maps/${slot.current.image}.png" alt="">
-        <span class="mode">${icon(mode.id)} ${mode.label}</span>
+        <span class="mode">${icon(mode.id)} ${t(mode.label)}</span>
         <div class="map-info">
           <div><small>${variant}</small><h2>${slot.current.name}</h2></div>
-          <div class="countdown"><small>До смены</small><span data-countdown>${countdown(slot.end - now)}</span></div>
-          <progress class="map-progress" value="${now - slot.start}" max="${slot.end - slot.start}" aria-label="Ход ротации"></progress>
+          <div class="countdown"><small>${t('До смены')}</small><span data-countdown>${countdown(slot.end - now)}</span></div>
+          <progress class="map-progress" value="${now - slot.start}" max="${slot.end - slot.start}" aria-label="${t('Ход ротации')}"></progress>
         </div>
       </div>
-      <button type="button" class="map-next" data-schedule="${index}" aria-label="${mode.label}, расписание">
-        <span class="map-next-label">Далее</span><strong>${slot.next.name}</strong>${dateTime(slot.end)}${icon('chevron')}
+      <button type="button" class="map-next" data-schedule="${index}" aria-label="${t('{mode}, расписание', { mode: t(mode.label) })}">
+        <span class="map-next-label">${t('Далее')}</span><strong>${slot.next.name}</strong>${dateTime(slot.end)}${icon('chevron')}
       </button>
     </article>`;
   }).join('');
@@ -150,7 +156,9 @@ function tick() {
     const key = `${mode.id}:${slot.end}:${preferences.lead}`;
     if (preferences.modes.includes(mode.id) && remaining <= preferences.lead * minute && !notified.has(key)) {
       notified.add(key);
-      showToast(`${mode.label} · ${slot.next.name} через ${Math.ceil(remaining / minute)} мин`);
+      showToast(t('{mode} · {map} через {minutes} мин', {
+        mode: t(mode.label), map: slot.next.name, minutes: Math.ceil(remaining / minute),
+      }));
     }
   });
 }
@@ -169,20 +177,20 @@ function showSchedule(index) {
   const mode = rotations[index];
   const slot = getSlot(mode, Date.now());
   const entry = (label, mapSlot, start, end) =>
-    `<div><dt>${label}${mapSlot.variant ? ` · ${mapSlot.variant}` : ''}</dt><dd><strong>${mapSlot.name}</strong>${dateTime(start)} – ${dateTime(end)}</dd></div>`;
+    `<div><dt>${t(label)}${mapSlot.variant ? ` · ${t(mapSlot.variant)}` : ''}</dt><dd><strong>${mapSlot.name}</strong>${dateTime(start)} – ${dateTime(end)}</dd></div>`;
   openDialog(mode.label, `<dl class="schedule">${entry('Сейчас', slot.current, slot.start, slot.end)}
     ${entry('Далее', slot.next, slot.end, slot.end + mode.slotMinutes * minute)}</dl>`);
 }
 
 function showReminders() {
   const modeOptions = rotations.map(mode => `<label><input type="checkbox" name="mode" value="${mode.id}"
-    ${preferences.modes.includes(mode.id) ? 'checked' : ''}>${mode.label}</label>`).join('');
+    ${preferences.modes.includes(mode.id) ? 'checked' : ''}>${t(mode.label)}</label>`).join('');
   const leads = [1, 5, 10, 15, 30];
   openDialog('Напоминания', `<form class="reminder-form" id="reminder-form">
-    <fieldset><legend>Режимы</legend>${modeOptions}</fieldset>
-    ${selectField('lead', 'Предупреждать заранее', leads.map(value => `${value} мин`), preferences.lead, leads)}
-    <p class="form-note">В прототипе напоминания появляются в открытой вкладке.</p>
-    <button class="button primary" type="submit">Сохранить</button>
+    <fieldset><legend>${t('Режимы')}</legend>${modeOptions}</fieldset>
+    ${selectField('lead', 'Предупреждать заранее', leads.map(minutes => t('{minutes} мин', { minutes })), preferences.lead, leads)}
+    <p class="form-note">${t('В прототипе напоминания появляются в открытой вкладке.')}</p>
+    <button class="button primary" type="submit">${t('Сохранить')}</button>
   </form>`);
   document.querySelector('#reminder-form').addEventListener('submit', event => {
     event.preventDefault();
@@ -199,14 +207,14 @@ function updateReminderButton() {
 }
 
 function openDialog(title, content) {
-  dialogTitle.textContent = title;
+  dialogTitle.textContent = t(title);
   dialogContent.innerHTML = content;
   dialog.showModal();
 }
 
 function showToast(message) {
   clearTimeout(toastTimer);
-  toast.textContent = message;
+  toast.textContent = t(message);
   toast.hidden = false;
   toastTimer = setTimeout(() => { toast.hidden = true; }, 5500);
 }
@@ -220,7 +228,7 @@ function legendStats(legend, index) {
 function renderLegends() {
   screen.innerHTML = heading('Легенды', 'Популярность и динамика за 7 дней', selectField('rank', 'Ранг', ranks, selections.rank)) +
     `<div class="panel-grid">
-      <article class="panel"><div class="panel-head"><h2>Частота выбора</h2>${icon('legends')}</div><div class="legend-list" id="legend-list"></div></article>
+      <article class="panel"><div class="panel-head"><h2>${t('Частота выбора')}</h2>${icon('legends')}</div><div class="legend-list" id="legend-list"></div></article>
       <article class="panel" id="legend-history"></article>
     </div>`;
   updateLegends();
@@ -236,15 +244,15 @@ function updateLegends(focus = false) {
     <span class="legend-tile" aria-hidden="true">${item.name[0]}</span><strong>${item.name}</strong>
     <span class="mono">${formatDecimal.format(item.latest)} %</span>${trend(item.change)}
   </button>`).join('');
-  document.querySelector('#legend-history').innerHTML = `<h2>${current.name}</h2><p>${current.role}</p>
+  document.querySelector('#legend-history').innerHTML = `<h2>${current.name}</h2><p>${t(current.role)}</p>
     <strong class="chart-value">${formatDecimal.format(current.latest)} %</strong>${trend(current.change)}
-    ${trendChart(current.history)}<div class="chart-labels"><span>6 дней назад</span><span>Сегодня</span></div>`;
+    ${trendChart(current.history)}<div class="chart-labels"><span>${t('6 дней назад')}</span><span>${t('Сегодня')}</span></div>`;
   if (focus) list.querySelector(`[data-legend="${selections.legend}"]`).focus();
 }
 
 function trend(value) {
   const up = value >= 0;
-  return `<span class="mono ${up ? 'trend-up' : 'trend-down'}">${up ? '+' : '−'}${formatDecimal.format(Math.abs(value))} п.п.</span>`;
+  return `<span class="mono ${up ? 'trend-up' : 'trend-down'}">${up ? '+' : '−'}${formatDecimal.format(Math.abs(value))} ${t('п.п.')}</span>`;
 }
 
 function trendChart(history) {
@@ -253,7 +261,7 @@ function trendChart(history) {
   const points = history.map((value, index) => [12 + 52 * index, 133 - 112 * (value - minimum) / spread]);
   const line = points.map(pair => pair.join(',')).join(' ');
   const label = history.map(value => formatDecimal.format(value)).join('; ');
-  return `<svg class="chart" viewBox="0 0 336 148" role="img" aria-label="Доля выбора по дням, в процентах: ${label}">
+  return `<svg class="chart" viewBox="0 0 336 148" role="img" aria-label="${t('Доля выбора по дням, в процентах')}: ${label}">
     <path d="M12 32h312M12 72h312M12 112h312M12 140h312" stroke="#d8d4c5"/>
     <polygon points="12,140 ${line} 324,140" fill="#edf4aa"/>
     <polyline points="${line}" fill="none" stroke="#292c18" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -283,13 +291,13 @@ function updateWeapons() {
     ['Патронов в магазине', first.magazine, second.magazine],
     ['Урон в секунду', first.damage * first.rpm / 60, second.damage * second.rpm / 60],
   ];
-  const row = ([label, left, right]) => `<tr><th scope="row">${label}</th>
+  const row = ([label, left, right]) => `<tr><th scope="row">${t(label)}</th>
     <td class="${left > right ? 'metric-best' : ''}">${formatNumber.format(left)}</td>
     <td class="${right > left ? 'metric-best' : ''}">${formatNumber.format(right)}</td></tr>`;
-  document.querySelector('#comparison').innerHTML = `<article class="panel"><h2>Характеристики</h2>
-    <table class="metric-table"><thead><tr><th scope="col">Показатель</th><th scope="col">${first.name}</th><th scope="col">${second.name}</th></tr></thead>
+  document.querySelector('#comparison').innerHTML = `<article class="panel"><h2>${t('Характеристики')}</h2>
+    <table class="metric-table"><thead><tr><th scope="col">${t('Показатель')}</th><th scope="col">${first.name}</th><th scope="col">${second.name}</th></tr></thead>
     <tbody>${rows.map(row).join('')}</tbody></table></article>
-    <article class="panel"><h2>Время до убийства</h2><p>Попадания в корпус · ${armor.health} HP</p>
+    <article class="panel"><h2>${t('Время до убийства')}</h2><p>${t('Попадания в корпус')} · ${armor.health} HP</p>
       <div class="ttk-values">${[first, second].map(weapon => ttkRow(weapon, armor.health)).join('')}</div>
     </article>`;
 }
@@ -297,17 +305,17 @@ function updateWeapons() {
 function ttkRow(weapon, health) {
   const shots = Math.ceil(health / weapon.damage);
   const seconds = (shots - 1) * 60 / weapon.rpm;
-  const value = shots > weapon.magazine ? 'Нужна перезарядка' : `${formatNumber.format(seconds)} с`;
+  const value = shots > weapon.magazine ? t('Нужна перезарядка') : t('{value} с', { value: formatNumber.format(seconds) });
   return `<p><span>${weapon.name}</span><strong>${value}</strong></p>`;
 }
 
 function renderBuilds() {
   screen.innerHTML = heading('Сборки', 'Пары оружия и улучшения легенд') + `<div class="panel-grid">
-    <article class="panel"><div class="panel-head"><h2>Пары оружия</h2>${icon('weapons')}</div>
+    <article class="panel"><div class="panel-head"><h2>${t('Пары оружия')}</h2>${icon('weapons')}</div>
       ${selectField('distance', 'Дистанция', builds.map(build => build.name), selections.distance)}
       <div class="pair-list" id="pairs"></div>
     </article>
-    <article class="panel"><div class="panel-head"><h2>Улучшения</h2>${icon('builds')}</div>
+    <article class="panel"><div class="panel-head"><h2>${t('Улучшения')}</h2>${icon('builds')}</div>
       ${selectField('guide', 'Легенда', guides.map(guide => guide.name), selections.guide)}
       <div id="guide-styles"></div><div id="upgrades"></div>
     </article></div>`;
@@ -322,7 +330,7 @@ function renderBuilds() {
 
 function updatePairs() {
   document.querySelector('#pairs').innerHTML = builds[selections.distance].pairs.map(([first, second, reason]) =>
-    `<div class="upgrade"><h3 class="pair"><strong>${first}</strong>${icon('builds')}<strong>${second}</strong></h3><p>${reason}</p></div>`,
+    `<div class="upgrade"><h3 class="pair"><strong>${first}</strong>${icon('builds')}<strong>${second}</strong></h3><p>${t(reason)}</p></div>`,
   ).join('');
 }
 
@@ -336,7 +344,7 @@ function updateGuideStyles() {
 function updateUpgrades() {
   const [, ...levels] = guides[selections.guide].styles[selections.style];
   document.querySelector('#upgrades').innerHTML = levels.map(([name, reason], index) =>
-    `<section class="upgrade"><h3><span>Ур. ${index + 2}</span> ${name}</h3><p>${reason}</p></section>`,
+    `<section class="upgrade"><h3><span>${t('Ур. {level}', { level: index + 2 })}</span> ${name}</h3><p>${t(reason)}</p></section>`,
   ).join('');
 }
 
@@ -358,13 +366,17 @@ screen.addEventListener('error', event => {
 }, true);
 zoneSelect.addEventListener('change', () => {
   preferences.zone = zoneSelect.value;
-  clock = createClock();
+  setFormatters();
   savePreferences();
   const nextTimes = screen.querySelectorAll('.map-next time');
   shownSlots.forEach((slot, index) => { nextTimes[index].textContent = clock.format(slot.end); });
 });
 remindersButton.addEventListener('click', showReminders);
 window.addEventListener('hashchange', showTab);
+document.addEventListener('apeh:language', () => {
+  setFormatters();
+  showTab();
+});
 updateReminderButton();
 showTab();
 setInterval(tick, 1000);

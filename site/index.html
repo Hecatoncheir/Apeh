@@ -5,45 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Apeh — ротация карт, популярность легенд, сравнение оружия и сборки для Apex Legends.">
   <meta name="theme-color" content="#f6f3e9">
-  <title>Apeh — помощник для Apex Legends</title>
+  <title data-i18n="Apeh — помощник для Apex Legends">Apeh — помощник для Apex Legends</title>
   <link rel="icon" href="assets/apeh-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="styles.css">
+  <script src="language.js" defer></script>
 </head>
 <body class="landing">
   <div class="landing-shell">
     <header class="landing-header">
-      <a class="brand" href="./" aria-label="Apeh, главная"><img src="assets/apeh-mark.svg" width="42" height="42" alt=""><img src="assets/apeh-logo.svg" width="91" height="36" alt="Apeh"></a>
-      <a class="github-link" href="https://github.com/Hecatoncheir/Apeh">GitHub <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#external"/></svg></a>
+      <a class="brand" href="./" aria-label="Apeh, главная" data-i18n-aria="Apeh, главная"><img src="assets/apeh-mark.svg" width="42" height="42" alt=""><img src="assets/apeh-logo.svg" width="91" height="36" alt="Apeh"></a>
+      <div class="header-actions">
+        <select class="language-select" id="site-language" aria-label="Язык" data-i18n-aria="Язык">
+          <option value="auto" data-i18n="Автоматически">Автоматически</option>
+          <option value="ru" selected data-i18n="Русский">Русский</option>
+          <option value="en" data-i18n="Английский">Английский</option>
+        </select>
+        <a class="github-link" href="https://github.com/Hecatoncheir/Apeh">GitHub <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#external"/></svg></a>
+      </div>
     </header>
     <main class="landing-main">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy">
-          <p class="eyebrow"><span></span> Помощник для Apex Legends</p>
-          <h1 id="hero-title">К&nbsp;высадке<br>готов.</h1>
-          <p class="hero-description">Карты и время смены, популярные легенды, оружие и сборки для следующего матча.</p>
+          <p class="eyebrow"><span></span><strong data-i18n="Помощник для Apex Legends">Помощник для Apex Legends</strong></p>
+          <h1 id="hero-title"><span data-i18n="К&nbsp;высадке">К&nbsp;высадке</span><br><span data-i18n="готов.">готов.</span></h1>
+          <p class="hero-description" data-i18n="Карты и время смены, популярные легенды, оружие и сборки для следующего матча.">Карты и время смены, популярные легенды, оружие и сборки для следующего матча.</p>
           <div class="hero-actions">
-            <a class="button primary" href="https://github.com/Hecatoncheir/Apeh/releases/latest/download/Apeh-Setup-x64.exe"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download"/></svg> Скачать для Windows</a>
-            <a class="button secondary" href="app.html">Открыть прототип <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#arrow"/></svg></a>
+            <a class="button primary" href="https://github.com/Hecatoncheir/Apeh/releases/latest/download/Apeh-Setup-x64.exe"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#download"/></svg><span data-i18n="Скачать для Windows">Скачать для Windows</span></a>
+            <a class="button secondary" href="app.html"><span data-i18n="Открыть прототип">Открыть прототип</span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#arrow"/></svg></a>
           </div>
         </div>
         <figure class="field-art">
           <div class="field-ring"></div>
           <div class="field-cross field-cross-top" aria-hidden="true">+</div>
           <div class="field-cross field-cross-bottom" aria-hidden="true">+</div>
-          <img src="assets/frontier.webp" width="1280" height="853" alt="Тушевая гравюра горного острова с аванпостом">
+          <img src="assets/frontier.webp" width="1280" height="853" alt="Тушевая гравюра горного острова с аванпостом" data-i18n-alt="Тушевая гравюра горного острова с аванпостом">
         </figure>
       </section>
-      <nav class="features" aria-label="Экраны прототипа">
-        <a href="app.html#maps"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#atlas"/></svg><span><strong>Карты</strong><small>Ротация и таймеры</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
-        <a href="app.html#legends"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#bust"/></svg><span><strong>Легенды</strong><small>Выбор по рангам</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
-        <a href="app.html#weapons"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#target"/></svg><span><strong>Оружие</strong><small>Сравнение и TTK</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
-        <a href="app.html#builds"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#kit"/></svg><span><strong>Сборки</strong><small>Пары и улучшения</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
+      <nav class="features" aria-label="Экраны прототипа" data-i18n-aria="Экраны прототипа">
+        <a href="app.html#maps"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#atlas"/></svg><span><strong data-i18n="Карты">Карты</strong><small data-i18n="Ротация и таймеры">Ротация и таймеры</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
+        <a href="app.html#legends"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#bust"/></svg><span><strong data-i18n="Легенды">Легенды</strong><small data-i18n="Выбор по рангам">Выбор по рангам</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
+        <a href="app.html#weapons"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#target"/></svg><span><strong data-i18n="Оружие">Оружие</strong><small data-i18n="Сравнение и TTK">Сравнение и TTK</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
+        <a href="app.html#builds"><svg class="feature-icon" aria-hidden="true"><use href="assets/icons.svg#kit"/></svg><span><strong data-i18n="Сборки">Сборки</strong><small data-i18n="Пары и улучшения">Пары и улучшения</small></span><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#chevron"/></svg></a>
       </nav>
     </main>
     <footer class="landing-footer">
-      <span>Независимый проект для игроков Apex Legends</span>
-      <a href="https://github.com/Hecatoncheir/Apeh/releases">История версий <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#external"/></svg></a>
+      <span data-i18n="Независимый проект для игроков Apex Legends">Независимый проект для игроков Apex Legends</span>
+      <a href="https://github.com/Hecatoncheir/Apeh/releases"><span data-i18n="История версий">История версий</span> <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#external"/></svg></a>
     </footer>
   </div>
 </body>

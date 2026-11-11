@@ -50,6 +50,20 @@ svg { vertical-align: middle; }
 .landing-header { padding: 24px 0; border-bottom: 1px solid var(--line); }
 .github-link { min-height: 38px; border-color: var(--line); font-size: 13px; }
 .github-link .icon, .landing-footer .icon { width: 15px; height: 15px; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.language-select {
+  min-height: 38px;
+  max-width: 140px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.workspace-top .language-select { margin-left: auto; }
+.map-tools:not([hidden]) { margin-left: auto; }
+.map-tools:not([hidden]) + .language-select { margin-left: 0; }
+.eyebrow strong, .demo-badge strong { font: inherit; }
 .landing-main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 26px 0; gap: 26px; }
 .hero { display: grid; grid-template-columns: .89fr 1.11fr; align-items: center; gap: clamp(24px, 4vw, 65px); }
 .hero-copy { padding: 12px 0; }
@@ -258,5 +272,14 @@ input[type="checkbox"] { accent-color: var(--ink); width: 17px; height: 17px; }
   .map-current { min-height: 143px; }
   .control-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panel { padding: 12px; }
+}
+@media (max-width: 430px) {
+  .landing-header { gap: 8px; flex-wrap: wrap; }
+  .header-actions { margin-left: auto; gap: 6px; }
+  .landing-header .brand { gap: 6px; }
+  .landing-header .brand img:first-child { width: 34px; height: 34px; }
+  .landing-header .brand img:last-child { width: 56px; height: auto; }
+  .landing-header .github-link { gap: 4px; padding-inline: 7px; }
+  .landing-header .language-select { max-width: 106px; font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }

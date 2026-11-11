@@ -8,42 +8,48 @@
   <link rel="icon" href="assets/apeh-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="styles.css">
+  <script src="language.js" defer></script>
   <script src="demo-data.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body class="app">
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="./" aria-label="Apeh, на сайт"><img src="assets/apeh-mark.svg" width="42" height="42" alt=""><img src="assets/apeh-logo.svg" width="82" height="33" alt="Apeh"></a>
-      <nav class="app-nav" aria-label="Разделы приложения">
-        <a href="#maps" data-tab="maps"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#maps"/></svg> Карты</a>
-        <a href="#legends" data-tab="legends"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#legends"/></svg> Легенды</a>
-        <a href="#weapons" data-tab="weapons"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#weapons"/></svg> Оружие</a>
-        <a href="#builds" data-tab="builds"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#builds"/></svg> Сборки</a>
+      <a class="brand" href="./" aria-label="Apeh, на сайт" data-i18n-aria="Apeh, на сайт"><img src="assets/apeh-mark.svg" width="42" height="42" alt=""><img src="assets/apeh-logo.svg" width="82" height="33" alt="Apeh"></a>
+      <nav class="app-nav" aria-label="Разделы приложения" data-i18n-aria="Разделы приложения">
+        <a href="#maps" data-tab="maps"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#maps"/></svg><span data-i18n="Карты">Карты</span></a>
+        <a href="#legends" data-tab="legends"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#legends"/></svg><span data-i18n="Легенды">Легенды</span></a>
+        <a href="#weapons" data-tab="weapons"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#weapons"/></svg><span data-i18n="Оружие">Оружие</span></a>
+        <a href="#builds" data-tab="builds"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#builds"/></svg><span data-i18n="Сборки">Сборки</span></a>
       </nav>
-      <a class="back-link" href="./"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#external"/></svg> На сайт</a>
+      <a class="back-link" href="./"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#external"/></svg><span data-i18n="На сайт">На сайт</span></a>
     </aside>
     <main class="workspace">
       <header class="workspace-top">
-        <span class="demo-badge"><span></span> Демо-данные</span>
+        <span class="demo-badge"><span></span><strong data-i18n="Демо-данные">Демо-данные</strong></span>
         <div class="map-tools" id="map-tools">
           <label class="timezone">
             <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#clock"/></svg>
-            <select id="timezone" aria-label="Часовой пояс">
-              <option value="local">Местное время</option>
-              <option value="Europe/Moscow">Москва · UTC+3</option>
+            <select id="timezone" aria-label="Часовой пояс" data-i18n-aria="Часовой пояс">
+              <option value="local" data-i18n="Местное время">Местное время</option>
+              <option value="Europe/Moscow" data-i18n="Москва · UTC+3">Москва · UTC+3</option>
               <option value="UTC">UTC</option>
-              <option value="Asia/Yekaterinburg">Екатеринбург · UTC+5</option>
-              <option value="Asia/Novosibirsk">Новосибирск · UTC+7</option>
-              <option value="Asia/Vladivostok">Владивосток · UTC+10</option>
+              <option value="Asia/Yekaterinburg" data-i18n="Екатеринбург · UTC+5">Екатеринбург · UTC+5</option>
+              <option value="Asia/Novosibirsk" data-i18n="Новосибирск · UTC+7">Новосибирск · UTC+7</option>
+              <option value="Asia/Vladivostok" data-i18n="Владивосток · UTC+10">Владивосток · UTC+10</option>
             </select>
           </label>
-          <button class="button secondary reminders-button" id="open-reminders" type="button" aria-label="Напоминания"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#bell"/></svg> <span>Напоминания</span></button>
+          <button class="button secondary reminders-button" id="open-reminders" type="button" aria-label="Напоминания" data-i18n-aria="Напоминания"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#bell"/></svg><span data-i18n="Напоминания">Напоминания</span></button>
         </div>
+        <select class="language-select" id="site-language" aria-label="Язык" data-i18n-aria="Язык">
+          <option value="auto" data-i18n="Автоматически">Автоматически</option>
+          <option value="ru" selected data-i18n="Русский">Русский</option>
+          <option value="en" data-i18n="Английский">Английский</option>
+        </select>
       </header>
       <section id="screen" aria-labelledby="screen-title"></section>
       <footer class="workspace-footer">
-        <span>Прототип Apeh</span>
+        <span data-i18n="Прототип Apeh">Прототип Apeh</span>
         <a href="https://apexlegendsstatus.com/">Apex Legends Status <svg class="icon" aria-hidden="true"><use href="assets/icons.svg#external"/></svg></a>
       </footer>
     </main>
@@ -51,7 +57,7 @@
   <dialog id="details" aria-labelledby="dialog-title">
     <div class="dialog-top">
       <h2 id="dialog-title"></h2>
-      <form method="dialog"><button class="icon-button" aria-label="Закрыть"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#close"/></svg></button></form>
+      <form method="dialog"><button class="icon-button" aria-label="Закрыть" data-i18n-aria="Закрыть"><svg class="icon" aria-hidden="true"><use href="assets/icons.svg#close"/></svg></button></form>
     </div>
     <div id="dialog-content"></div>
   </dialog>
