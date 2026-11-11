@@ -9,6 +9,7 @@ $accessibility = [Reflection.Assembly]::LoadWithPartialName('Accessibility')
 Add-Type -ReferencedAssemblies $accessibility.Location -Path (Resolve-Path ./installer/flutter-accessibility.cs).Path
 $toastManager = [Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]
 $appId = 'Apeh.MapRotation'
+$inboxProbe = (Resolve-Path ./installer/find-delivered-toast.py).Path
 
 function Wait-For([string]$description, [scriptblock]$check, [int]$seconds) {
     $deadline = [DateTimeOffset]::UtcNow.AddSeconds($seconds)
@@ -109,6 +110,8 @@ try {
     }
     Write-Output 'Окно скрыто, значок Apeh зарегистрирован в трее Windows.'
 
+    $beforeDelivery = [DateTimeOffset]::UtcNow
+    $remaining = [Math]::Max(0, $change - $beforeDelivery.ToUnixTimeSeconds())
     $delivered = Wait-For 'доставленного Windows уведомления' {
         if ($app.HasExited -or [ApehTrayCheck]::IsWindowVisible($window)) {
             throw 'Apeh перестал работать в трее до доставки.'
@@ -116,8 +119,16 @@ try {
         if ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() -lt $change) { return }
         if (Find-WindowsToast $message) { return 'баннер Windows' }
         if (Find-DeliveredToast $expectedId $message) { return 'история уведомлений Windows' }
-    } 55
+        if (& python $inboxProbe $expectedId $message) { return 'хранилище доставленных уведомлений Windows' }
+    } ($remaining + 75)
     Write-Output "Уведомление «$message» доставлено, пока Apeh оставался в трее. Подтверждение: $delivered."
+} catch {
+    $notifier = $toastManager::CreateToastNotifier($appId)
+    Write-Output "Уведомления в очереди после ошибки: $(@($notifier.GetScheduledToastNotifications()).Tag -join ', ')."
+    Write-Output "Состояние уведомлений Windows: $($notifier.Setting)."
+    Get-WinEvent -ListLog '*PushNotifications*','*TWinUI*' -ErrorAction SilentlyContinue |
+        Select-Object LogName, IsEnabled, RecordCount | Format-Table | Out-String | Write-Output
+    throw
 } finally {
     if ($app -and !$app.HasExited) { Stop-Process -Id $app.Id }
     Remove-NetFirewallRule -Name $rule
