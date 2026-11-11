@@ -1,7 +1,9 @@
-param([Parameter(Mandatory)][string]$Tag)
+param([Parameter(Mandatory)][ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Tag)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$accessibility = [Reflection.Assembly]::LoadWithPartialName('Accessibility')
+Add-Type -ReferencedAssemblies $accessibility.Location -Path (Resolve-Path ./installer/flutter-accessibility.cs).Path
 
 function Wait-For([string]$Description, [scriptblock]$Check, [int]$Seconds = 40) {
     $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
@@ -37,11 +39,11 @@ function Invoke-Control($Control) {
     $pattern.Invoke()
 }
 
-function Get-AppWindow($App) {
+function Find-AppControl($App, [string]$Name) {
     $App.Refresh()
     if ($App.HasExited) { throw "Apeh завершился ($($App.ExitCode))." }
     if ($App.MainWindowHandle -ne [IntPtr]::Zero) {
-        [System.Windows.Automation.AutomationElement]::FromHandle($App.MainWindowHandle)
+        [FlutterAccessibility]::Find($App.MainWindowHandle, $Name)
     }
 }
 
@@ -73,7 +75,7 @@ function Assert-Settings {
 
 $version = [version]$Tag.Substring(1)
 $api = 'https://api.github.com/repos/Hecatoncheir/Apeh/releases'
-$releases = Invoke-RestMethod "${api}?per_page=30"
+$releases = Invoke-RestMethod "${api}?per_page=30" -UseBasicParsing
 $previous = $releases |
     Where-Object {
         !$_.draft -and !$_.prerelease -and $_.tag_name -match '^v\d+\.\d+\.\d+$' -and
@@ -86,7 +88,7 @@ if (!$previous) { Write-Output 'Предыдущий выпуск отсутст
 $asset = $previous.assets | Where-Object name -eq 'Apeh-Setup-x64.exe'
 $target = Join-Path $env:RUNNER_TEMP 'ApehUpgrade'
 $oldInstaller = Join-Path $env:RUNNER_TEMP 'Apeh-previous.exe'
-Invoke-WebRequest $asset.browser_download_url -OutFile $oldInstaller
+Invoke-WebRequest $asset.browser_download_url -OutFile $oldInstaller -UseBasicParsing
 if ("sha256:$((Get-FileHash -LiteralPath $oldInstaller).Hash)" -ne $asset.digest) {
     throw 'Контрольная сумма предыдущего установщика отличается.'
 }
@@ -105,15 +107,14 @@ Write-Output "Установлен выпуск $($previous.tag_name). Подг�
 $exe = Join-Path $target 'apeh.exe'
 $old = Start-Process $exe -WorkingDirectory $target -PassThru
 try {
-    $window = Wait-For 'окна предыдущего Apeh' { Get-AppWindow $old }
-    $null = Wait-For 'пояса UTC в предыдущем Apeh' { Find-Control $window '^UTC$' }
-    Invoke-Control (Wait-For 'кнопки обновления' { Find-Control $window '^Обновления Apeh$' })
+    $null = Wait-For 'пояса UTC в предыдущем Apeh' { Find-AppControl $old 'UTC' }
+    (Wait-For 'кнопки обновления' { Find-AppControl $old 'Обновления Apeh' }).Invoke()
     $null = Wait-For 'версии предыдущего Apeh в диалоге' {
-        Find-Control $window "^Установленная версия $([regex]::Escape($previous.tag_name.Substring(1)))$"
+        Find-AppControl $old "Установленная версия $($previous.tag_name.Substring(1))"
     }
-    Invoke-Control (Wait-For 'предложения скачать новый выпуск' {
-        Find-Control $window '^Скачать и установить$'
-    } 90)
+    (Wait-For 'предложения скачать новый выпуск' {
+        Find-AppControl $old 'Скачать и установить'
+    } 90).Invoke()
     if (!$old.WaitForExit(90000) -or $old.ExitCode -ne 0) {
         throw 'Apeh не завершился после запуска скачанного установщика.'
     }
@@ -139,8 +140,11 @@ try {
             Select-Object -First 1
     }
     try {
-        $window = Wait-For 'окна обновлённого Apeh' { Get-AppWindow $new }
-        $null = Wait-For 'пояса UTC в обновлённом Apeh' { Find-Control $window '^UTC$' }
+        $null = Wait-For 'пояса UTC в обновлённом Apeh' { Find-AppControl $new 'UTC' }
+        (Wait-For 'окна обновлений новой версии' { Find-AppControl $new 'Обновления Apeh' }).Invoke()
+        $null = Wait-For 'номера новой версии в окне обновлений' {
+            Find-AppControl $new "Установленная версия $($Tag.Substring(1))"
+        }
         Assert-Settings
     } finally {
         if (!$new.HasExited) { Stop-Process -Id $new.Id }
