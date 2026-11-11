@@ -16,15 +16,20 @@ String? prepareGuideUpdate(String publishedJson, String candidateJson) {
 
   final before = jsonDecode(publishedJson) as Map<String, Object?>;
   final after = jsonDecode(candidateJson) as Map<String, Object?>;
-  if (_recommendations(before) == _recommendations(after)) return null;
+  if (_content(before) == _content(after)) return null;
   after['revision'] = published.revision + 1;
   final result = const JsonEncoder.withIndent('  ').convert(after);
   GuideEdition.parse(result);
   return '$result\n';
 }
 
-String _recommendations(Map<String, Object?> edition) =>
-    jsonEncode(_sorted([edition['legends'], edition['weaponPairs']]));
+String _content(Map<String, Object?> edition) => jsonEncode(
+  _sorted([
+    edition['legends'],
+    edition['weaponPairs'],
+    edition['patchHighlights'],
+  ]),
+);
 
 Object? _sorted(Object? value) => switch (value) {
   final Map<String, Object?> map => {

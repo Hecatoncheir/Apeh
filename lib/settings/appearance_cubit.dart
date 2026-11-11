@@ -40,6 +40,11 @@ class AppearanceCubit extends Cubit<AppearanceState> {
     (settings) => settings.copyWith(scale: value),
   );
 
+  Future<bool> setCloseToTray(bool value) => _save(
+    () => AppearanceSettings.saveCloseToTray(value),
+    (settings) => settings.copyWith(closeToTray: value),
+  );
+
   Future<bool> _save(
     Future<bool> Function() persist,
     AppearanceSettings Function(AppearanceSettings) update,

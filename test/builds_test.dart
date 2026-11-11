@@ -316,6 +316,101 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('Сборка и затронувшие её изменения доступны офлайн', (
+    tester,
+  ) async {
+    mockBundledAsset(tester);
+    SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(1080, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final draft = jsonDecode(bundledJson) as Map<String, dynamic>;
+    draft['patchHighlights']['title'] = 'Проверочная сводка';
+    draft['patchHighlights']['changes'] = [
+      {
+        'section': 'weapons',
+        'id': 'r-301',
+        'name': 'R-301',
+        'ru': 'Проверочное изменение урона.',
+        'en': 'Test damage change.',
+      },
+    ];
+    final digestOnly = prepareGuideUpdate(bundledJson, jsonEncode(draft));
+    expect(digestOnly, isNotNull);
+    draft['legends']['lifeline']['level2'][0]['name'] = 'New Radio';
+    final next = prepareGuideUpdate(bundledJson, jsonEncode(draft))!;
+    var response = bundledJson;
+    var online = true;
+    final client = MockClient((request) async {
+      if (online && request.url.host == 'gist.githubusercontent.com') {
+        return http.Response.bytes(utf8.encode(response), 200);
+      }
+      return http.Response('', 503);
+    });
+    addTearDown(client.close);
+    await WeaponRepository(client).save(
+      WeaponCatalog('Cipher', DateTime(2026, 11, 4), [
+        weapon('r-301', 'R-301 Carbine'),
+        weapon('volt', 'Volt SMG'),
+      ]),
+    );
+
+    Future<void> openBuilds() async {
+      await tester.pumpWidget(ApehApp(client: client));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Сборки'));
+      await tester.pumpAndSettle();
+    }
+
+    await openBuilds();
+    await tester.tap(find.text('Новая сборка'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'Мой BR');
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Мой BR'), findsOneWidget);
+    response = next;
+    final refresh = find.text('Проверить обновления');
+    await tester.ensureVisible(refresh);
+    await tester.tap(refresh);
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    online = false;
+    await openBuilds();
+    expect(find.text('Мой BR'), findsOneWidget);
+    expect(
+      find.textContaining('Enhanced Radio · Нет на этом уровне'),
+      findsOneWidget,
+    );
+    final highlight = find.textContaining(
+      'Что изменилось в патче · Проверочная сводка',
+    );
+    await tester.tap(highlight);
+    await tester.pumpAndSettle();
+    expect(find.text('Проверочное изменение урона.'), findsOneWidget);
+    final compare = find.text('Сравнить оружие').first;
+    await tester.ensureVisible(compare);
+    await tester.tap(compare);
+    await tester.pumpAndSettle();
+    expect(
+      find.widgetWithText(DropdownButton<Weapon>, 'R-301 Carbine'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(DropdownButton<Weapon>, 'Volt SMG'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Что изменилось в патче'));
+    await tester.pumpAndSettle();
+    expect(
+      find.widgetWithText(AlertDialog, 'Проверочная сводка'),
+      findsOneWidget,
+    );
+    expect(find.text('Проверочное изменение урона.'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('Дальняя пара открывает два нужных ствола в сравнении', (
     tester,
   ) async {
@@ -353,6 +448,11 @@ void main() {
     expect(find.text('Ultimate Cooldown'), findsOneWidget);
     await tester.tap(find.text('Lifeline'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Seer'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tester.tap(find.text('Seer').last);
     await tester.pumpAndSettle();
     expect(find.text('Lasting Beats'), findsOneWidget);

@@ -54,18 +54,39 @@ class RotationStorage {
     final preferences = await SharedPreferences.getInstance();
     final value = preferences.getString(_remindersKey);
     if (value == null) return null;
-    if (jsonDecode(value)
-        case {
-          'minutes': final int minutes,
-          'playlists': final List<Object?> modes,
-        }
+    final Object? decoded = jsonDecode(value);
+    if (decoded
+        case final Map<String, Object?> data &&
+            {
+              'minutes': final int minutes,
+              'playlists': final List<Object?> modes,
+            }
         when minutes >= 0 && minutes <= RotationReminderSettings.maxMinutes) {
       return RotationReminderSettings(
         minutes,
-        Playlist.values.where((mode) => modes.contains(mode.name)),
+        _playlists(modes),
+        favorites: _favorites(data['favorites']),
       );
     }
     throw const FormatException();
+  }
+
+  Iterable<Playlist> _playlists(List<Object?> names) =>
+      Playlist.values.where((mode) => names.contains(mode.name));
+
+  Iterable<FavoriteMap> _favorites(Object? value) sync* {
+    if (value is! List<Object?>) return;
+    for (final item in value) {
+      if (item case {
+        'map': final String name,
+        'playlists': final List<Object?> modes,
+      }) {
+        final playlists = _playlists(modes);
+        if (name.trim().isNotEmpty && playlists.isNotEmpty) {
+          yield FavoriteMap(name, playlists);
+        }
+      }
+    }
   }
 
   Future<void> saveReminders(RotationReminderSettings settings) async {
@@ -73,6 +94,13 @@ class RotationStorage {
     final value = jsonEncode({
       'minutes': settings.minutes,
       'playlists': [for (final mode in settings.playlists) mode.name],
+      'favorites': [
+        for (final favorite in settings.favorites)
+          {
+            'map': favorite.name,
+            'playlists': [for (final mode in favorite.playlists) mode.name],
+          },
+      ],
     });
     if (!await preferences.setString(_remindersKey, value)) {
       throw Exception('Не удалось сохранить настройки напоминаний.');

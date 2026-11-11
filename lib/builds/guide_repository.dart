@@ -40,10 +40,18 @@ class GuideRepository {
     if (!current.entries.keys.every(edition.entries.containsKey)) {
       throw const FormatException();
     }
+    final cachedJson = _keepHighlights(json, edition, current);
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setString(_cacheKey, json)) {
+    if (!await prefs.setString(_cacheKey, cachedJson)) {
       throw const FormatException();
     }
-    return edition;
+    return cachedJson == json ? edition : GuideEdition.parse(cachedJson);
+  }
+
+  String _keepHighlights(String json, GuideEdition next, GuideEdition current) {
+    final previous = current.highlights;
+    if (next.highlights != null || previous == null) return json;
+    final data = jsonDecode(json) as Map<String, Object?>;
+    return jsonEncode({...data, 'patchHighlights': previous.toJson()});
   }
 }

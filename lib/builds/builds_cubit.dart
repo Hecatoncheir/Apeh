@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../catalog_state.dart';
 import 'build_guides.dart';
 import 'guide_repository.dart';
+import 'patch_highlights.dart';
 import 'upgrade_repository.dart';
 
 enum GuideUpdateStatus { checking, current, updated, unavailable }
@@ -17,6 +18,7 @@ class BuildsState {
     this.catalogs = const {},
     this.edition,
     this.guideStatus,
+    this.highlights,
   });
 
   final bool online;
@@ -25,6 +27,7 @@ class BuildsState {
   final Map<String, CatalogState<UpgradeCatalog>> catalogs;
   final GuideEdition? edition;
   final GuideUpdateStatus? guideStatus;
+  final PatchHighlights? highlights;
 
   Iterable<WeaponPair> get pairs =>
       edition?.weaponPairs.where((pair) => pair.range == range) ?? const [];
@@ -44,6 +47,7 @@ class BuildsState {
     Map<String, CatalogState<UpgradeCatalog>>? catalogs,
     GuideEdition? edition,
     GuideUpdateStatus? guideStatus,
+    PatchHighlights? highlights,
   }) => BuildsState(
     online: online,
     range: range ?? this.range,
@@ -51,6 +55,7 @@ class BuildsState {
     catalogs: catalogs ?? this.catalogs,
     edition: edition ?? this.edition,
     guideStatus: guideStatus ?? this.guideStatus,
+    highlights: highlights ?? this.highlights,
   );
 }
 
@@ -58,11 +63,11 @@ class BuildsCubit extends Cubit<BuildsState> {
   BuildsCubit(this._repository, this._guides, {required bool online})
     : super(BuildsState(online: online)) {
     unawaited(refreshGuides());
-    if (online) unawaited(refresh());
   }
 
   final UpgradeRepository _repository;
   final GuideRepository _guides;
+  PatchHighlights? _bundledHighlights;
 
   void selectRange(BuildRange range) => emit(state.copyWith(range: range));
 
@@ -93,11 +98,20 @@ class BuildsCubit extends Cubit<BuildsState> {
   }
 
   void _showGuides(GuideUpdateStatus status, {GuideEdition? edition}) {
-    if (!isClosed) emit(state.copyWith(edition: edition, guideStatus: status));
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        edition: edition,
+        guideStatus: status,
+        highlights:
+            edition?.highlights ?? state.highlights ?? _bundledHighlights,
+      ),
+    );
   }
 
   Future<GuideEdition> _loadGuides() async {
     final bundled = await _guides.bundled();
+    _bundledHighlights = bundled.highlights;
     try {
       final cached = await _guides.read();
       if (cached != null && cached.revision > bundled.revision) return cached;

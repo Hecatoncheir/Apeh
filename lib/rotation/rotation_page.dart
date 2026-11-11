@@ -85,6 +85,7 @@ class RotationPage extends StatelessWidget {
           label: Text(zoneLabel(context, state.zone.value)),
         ),
       ),
+      if (reminders != null) _favoritesButton(context, state, reminders),
       if (reminders != null) _reminderButton(context, reminders),
       IconButton(
         tooltip: context.strings.refreshMaps,
@@ -105,13 +106,49 @@ class RotationPage extends StatelessWidget {
     ];
   }
 
+  Widget _favoritesButton(
+    BuildContext context,
+    RotationState rotation,
+    ReminderState reminders,
+  ) {
+    final hasFavorites = reminders.settings.favorites.isNotEmpty;
+    return IconButton(
+      tooltip: context.strings.favoriteMaps,
+      style: hasFavorites
+          ? IconButton.styleFrom(backgroundColor: accent)
+          : null,
+      icon: Icon(
+        hasFavorites ? Icons.star : Icons.star_border,
+        color: hasFavorites ? ink : null,
+      ),
+      onPressed: reminders.busy
+          ? null
+          : () => _openReminderDialog(
+              context,
+              reminders.settings,
+              availableMaps: _knownMaps(rotation.schedule.snapshot),
+            ),
+    );
+  }
+
+  List<String> _knownMaps(RotationSnapshot? snapshot) {
+    final rotations = snapshot?.playlists.values ?? const <PlaylistRotation>[];
+    return {
+      for (final rotation in rotations)
+        for (final slot in rotation.slots) slot.name,
+    }.toList()..sort();
+  }
+
   Widget _reminderButton(BuildContext context, ReminderState state) =>
       IconButton(
         tooltip: context.strings.reminders,
-        style: state.settings.enabled
+        style: state.settings.playlists.isNotEmpty
             ? IconButton.styleFrom(backgroundColor: accent)
             : null,
-        icon: ApehIcon('bell', color: state.settings.enabled ? ink : null),
+        icon: ApehIcon(
+          'bell',
+          color: state.settings.playlists.isNotEmpty ? ink : null,
+        ),
         onPressed: state.busy
             ? null
             : () => _openReminderDialog(context, state.settings),
@@ -180,12 +217,16 @@ class RotationPage extends StatelessWidget {
 
   Future<void> _openReminderDialog(
     BuildContext context,
-    RotationReminderSettings settings,
-  ) async {
+    RotationReminderSettings settings, {
+    Iterable<String>? availableMaps,
+  }) async {
     final reminders = context.read<RotationCubit>().reminders!;
     final value = await showDialog<RotationReminderSettings>(
       context: context,
-      builder: (_) => RotationReminderDialog(settings: settings),
+      builder: (_) => RotationReminderDialog(
+        settings: settings,
+        availableMaps: availableMaps,
+      ),
     );
     if (context.mounted && value != null) await reminders.save(value);
   }

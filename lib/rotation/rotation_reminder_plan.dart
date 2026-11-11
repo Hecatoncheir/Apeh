@@ -1,17 +1,44 @@
 import 'rotation.dart';
 
 class RotationReminderSettings {
-  RotationReminderSettings(this.minutes, Iterable<Playlist> playlists)
-    : playlists = Set.unmodifiable(playlists);
+  RotationReminderSettings(
+    this.minutes,
+    Iterable<Playlist> playlists, {
+    Iterable<FavoriteMap> favorites = const [],
+  }) : playlists = Set.unmodifiable(playlists),
+       favorites = List.unmodifiable(favorites);
 
   static const maxMinutes = 1440;
   static final disabled = RotationReminderSettings(5, const []);
 
   final int minutes;
   final Set<Playlist> playlists;
+  final List<FavoriteMap> favorites;
 
-  bool get enabled => playlists.isNotEmpty;
+  bool get enabled => playlists.isNotEmpty || favorites.isNotEmpty;
+
+  bool follows(Playlist mode, String map) =>
+      playlists.contains(mode) ||
+      favorites.any(
+        (favorite) =>
+            favorite.key == mapKey(map) && favorite.playlists.contains(mode),
+      );
 }
+
+class FavoriteMap {
+  FavoriteMap(this.name, Iterable<Playlist> playlists)
+    : playlists = Set.unmodifiable(playlists);
+
+  final String name;
+  final Set<Playlist> playlists;
+  String get key => mapKey(name);
+}
+
+String mapKey(String name) => name
+    .trim()
+    .toLowerCase()
+    .replaceAll(RegExp(r'[’\x27]'), '')
+    .replaceAll(RegExp(r'\s+'), ' ');
 
 typedef MapReminder = ({
   int id,
@@ -34,16 +61,10 @@ List<MapReminder> planMapReminders(
   bool english = false,
 }) {
   final reminders = <int, MapReminder>{};
-  for (final mode in settings.playlists) {
+  for (final mode in Playlist.values) {
     final rotation = snapshot?.playlists[mode];
     if (rotation == null) continue;
-    for (final reminder in _forMode(
-      mode,
-      rotation,
-      settings.minutes,
-      now,
-      english,
-    )) {
+    for (final reminder in _forMode(mode, rotation, settings, now, english)) {
       reminders[reminder.id] = reminder;
     }
   }
@@ -54,11 +75,11 @@ List<MapReminder> planMapReminders(
 Iterable<MapReminder> _forMode(
   Playlist mode,
   PlaylistRotation rotation,
-  int minutes,
+  RotationReminderSettings settings,
   DateTime now,
   bool english,
 ) sync* {
-  final lead = Duration(minutes: minutes);
+  final lead = Duration(minutes: settings.minutes);
   final label = english && mode == Playlist.battleRoyale
       ? 'Regular BR'
       : mode.label;
@@ -66,6 +87,7 @@ Iterable<MapReminder> _forMode(
     final changeAt = slot.start.toUtc();
     final fireAt = changeAt.subtract(lead);
     if (!fireAt.isAfter(now) || _repeatsCurrent(rotation, slot)) continue;
+    if (!settings.follows(mode, slot.name)) continue;
     final seconds = changeAt.millisecondsSinceEpoch ~/ 1000;
     final map = [slot.name, slot.variant].nonNulls.join(' · ');
     yield (
@@ -73,7 +95,7 @@ Iterable<MapReminder> _forMode(
       fireAt: fireAt,
       changeAt: changeAt,
       title: 'Apeh · $label',
-      body: _body(map, minutes, english),
+      body: _body(map, settings.minutes, english),
     );
   }
 }

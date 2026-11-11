@@ -128,6 +128,59 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('Избранная карта уведомляет только в выбранном режиме', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var online = true;
+    final response = _publicResponse();
+    final body = response.body
+        .replaceFirst('Storm Point', 'Kings Canyon')
+        .replaceFirst('E-District', 'Storm Point');
+    final client = MockClient(
+      (_) async => online
+          ? http.Response(body, 200, headers: response.headers)
+          : http.Response('', 503),
+    );
+    addTearDown(client.close);
+    final first = _ReminderDelivery();
+    await tester.pumpWidget(ApehApp(client: client, notifications: first));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Избранные карты'));
+    await tester.pumpAndSettle();
+    final map = find.widgetWithText(ExpansionTile, 'Storm Point');
+    await tester.ensureVisible(map);
+    await tester.tap(map);
+    await tester.pumpAndSettle();
+    final mode = find.widgetWithText(FilterChip, 'Обычный BR');
+    await tester.ensureVisible(mode);
+    await tester.tap(mode);
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+    expect(first.plan, hasLength(1));
+    expect(first.plan.single.title, 'Apeh · Обычный BR');
+    expect(first.plan.single.body, contains('Storm Point'));
+    expect(first.requestedPermission, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    online = false;
+    final restored = _ReminderDelivery();
+    await tester.pumpWidget(ApehApp(client: client, notifications: restored));
+    await tester.pumpAndSettle();
+    expect(restored.plan, first.plan);
+    expect(restored.requestedPermission, isFalse);
+    await tester.tap(find.byTooltip('Избранные карты'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(mode);
+    expect(tester.widget<FilterChip>(mode).selected, isTrue);
+    await tester.tap(mode);
+    await tester.tap(find.text('Сохранить'));
+    await tester.pumpAndSettle();
+    expect(restored.plan, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('Выбранный пояс меняет время карт и сохраняется офлайн', (
     tester,
   ) async {

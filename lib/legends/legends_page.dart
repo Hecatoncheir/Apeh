@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../l10n/localization.dart';
+import '../builds/patch_highlights.dart';
+import '../builds/patch_notes_button.dart';
 import '../design/apeh_design.dart';
 import 'legend_board.dart';
 import 'legends_cubit.dart';
@@ -18,6 +20,7 @@ class LegendsPage extends StatelessWidget {
       return ApehPage(
         title: context.strings.legends,
         description: context.strings.legendDescription,
+        actions: const [PatchNotesButton(PatchSection.legends)],
         children: [ApehPanel(child: Text(context.strings.nativeLegends))],
       );
     }
@@ -30,6 +33,7 @@ class LegendsPage extends StatelessWidget {
       title: context.strings.legends,
       description: context.strings.legendDescription,
       actions: [
+        const PatchNotesButton(PatchSection.legends),
         SizedBox(
           width: 190,
           child: ApehSelect<LegendRank>(

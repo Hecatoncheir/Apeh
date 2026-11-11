@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'build_guides.dart';
+import 'patch_highlights.dart';
 
 final _contentId = RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$');
 
@@ -12,6 +13,7 @@ class GuideEdition {
     this.patch,
     Map<String, GuideEntry> entries,
     List<WeaponPair> pairs,
+    this.highlights,
   ) : entries = Map.unmodifiable(entries),
       weaponPairs = List.unmodifiable(pairs),
       legends = List.unmodifiable(
@@ -38,6 +40,7 @@ class GuideEdition {
           _text(patch),
           entries,
           revision == 1 && pairs == null ? const [] : _parseWeaponPairs(pairs),
+          PatchHighlights.parse(data['patchHighlights']),
         );
       }
     }
@@ -49,6 +52,7 @@ class GuideEdition {
   final Map<String, GuideEntry> entries;
   final List<BuildLegend> legends;
   final List<WeaponPair> weaponPairs;
+  final PatchHighlights? highlights;
 }
 
 List<WeaponPair> _parseWeaponPairs(Object? value) {

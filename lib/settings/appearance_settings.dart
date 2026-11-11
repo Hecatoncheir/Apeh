@@ -16,16 +16,19 @@ class AppearanceSettings {
     this.language = AppLanguage.russian,
     this.theme = ThemeMode.system,
     this.scale = 100,
+    this.closeToTray = false,
   });
 
   static const scales = [80, 90, 100, 110, 125];
   static const _language = 'appearance.language';
   static const _theme = 'appearance.theme';
   static const _scale = 'appearance.scale';
+  static const _closeToTray = 'window.closeToTray';
 
   final AppLanguage language;
   final ThemeMode theme;
   final int scale;
+  final bool closeToTray;
 
   static Future<AppearanceSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -42,6 +45,7 @@ class AppearanceSettings {
           ThemeMode.values.where((item) => item.name == theme).firstOrNull ??
           ThemeMode.system,
       scale: scale is int && scales.contains(scale) ? scale : 100,
+      closeToTray: prefs.get(_closeToTray) == true,
     );
   }
 
@@ -54,14 +58,19 @@ class AppearanceSettings {
   static Future<bool> saveScale(int value) async =>
       (await SharedPreferences.getInstance()).setInt(_scale, value);
 
+  static Future<bool> saveCloseToTray(bool value) async =>
+      (await SharedPreferences.getInstance()).setBool(_closeToTray, value);
+
   AppearanceSettings copyWith({
     AppLanguage? language,
     ThemeMode? theme,
     int? scale,
+    bool? closeToTray,
   }) => AppearanceSettings(
     language: language ?? this.language,
     theme: theme ?? this.theme,
     scale: scale ?? this.scale,
+    closeToTray: closeToTray ?? this.closeToTray,
   );
 }
 

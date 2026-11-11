@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../l10n/localization.dart';
+import '../builds/patch_highlights.dart';
+import '../builds/patch_notes_button.dart';
 import '../design/apeh_design.dart';
 import 'weapon.dart';
 import 'weapons_cubit.dart';
@@ -19,6 +21,7 @@ class WeaponsPage extends StatelessWidget {
       title: context.strings.weapons,
       description: context.strings.weaponDescription,
       actions: [
+        const PatchNotesButton(PatchSection.weapons),
         IconButton(
           tooltip: context.strings.refreshWeapons,
           onPressed: state.source.loading

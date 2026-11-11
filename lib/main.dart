@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'app_shell.dart';
 import 'builds/builds_cubit.dart';
 import 'builds/guide_repository.dart';
+import 'builds/saved_builds.dart';
 import 'builds/upgrade_repository.dart';
 import 'design/apeh_design.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -18,6 +21,7 @@ import 'rotation/rotation_repository.dart';
 import 'rotation/rotation_storage.dart';
 import 'settings/appearance_cubit.dart';
 import 'settings/appearance_settings.dart';
+import 'settings/windows_tray.dart';
 import 'weapons/weapon_repository.dart';
 import 'weapons/weapons_cubit.dart';
 
@@ -49,6 +53,7 @@ class _ApehAppState extends State<ApehApp> {
       BlocProvider(create: (_) => _rotation()),
       BlocProvider(create: (_) => LegendsCubit(LegendRepository(_client))),
       BlocProvider(create: (_) => WeaponsCubit(WeaponRepository(_client))),
+      BlocProvider(create: (_) => SavedBuildsCubit()),
       BlocProvider(
         create: (_) => BuildsCubit(
           UpgradeRepository(_client),
@@ -99,19 +104,24 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeLocales(List<Locale>? locales) => _updateReminderLanguage(
-    context.read<AppearanceCubit>().state.settings.language,
-  );
+  void didChangeLocales(List<Locale>? locales) =>
+      _applyPlatformSettings(context.read<AppearanceCubit>().state.settings);
 
-  void _updateReminderLanguage(AppLanguage language) {
+  void _applyPlatformSettings(AppearanceSettings settings) {
     final locale =
-        language.locale ??
+        settings.language.locale ??
         basicLocaleListResolution(
           WidgetsBinding.instance.platformDispatcher.locales,
           AppLocalizations.supportedLocales,
         );
     context.read<RotationCubit>().reminders?.setEnglish(
       locale.languageCode == 'en',
+    );
+    unawaited(
+      WindowsTray.configure(
+        settings.closeToTray,
+        lookupAppLocalizations(locale),
+      ),
     );
   }
 
@@ -120,9 +130,9 @@ class _AppViewState extends State<_AppView> with WidgetsBindingObserver {
       BlocListener<AppearanceCubit, AppearanceState>(
         listenWhen: (previous, current) =>
             previous.ready != current.ready ||
-            previous.settings.language != current.settings.language,
-        listener: (_, state) =>
-            _updateReminderLanguage(state.settings.language),
+            previous.settings.language != current.settings.language ||
+            previous.settings.closeToTray != current.settings.closeToTray,
+        listener: (_, state) => _applyPlatformSettings(state.settings),
         child:
             BlocSelector<AppearanceCubit, AppearanceState, AppearanceSettings>(
               selector: (state) => state.settings,

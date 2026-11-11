@@ -6,11 +6,12 @@ import '../l10n/localization.dart';
 import '../design/apeh_design.dart';
 import 'build_guides.dart';
 import 'builds_cubit.dart';
+import 'saved_builds_panel.dart';
 import 'upgrade_repository.dart';
 
 class BuildsPage extends StatelessWidget {
   const BuildsPage({super.key, required this.onCompare});
-  final ValueChanged<WeaponPair> onCompare;
+  final CompareWeapons onCompare;
 
   @override
   Widget build(BuildContext context) => BlocBuilder<BuildsCubit, BuildsState>(
@@ -18,6 +19,8 @@ class BuildsPage extends StatelessWidget {
       title: context.strings.brBuilds,
       description: context.strings.buildDescription,
       children: [
+        SavedBuildsPanel(guides: state, onCompare: onCompare),
+        const SizedBox(height: 14),
         _EditionUpdate(state: state),
         const SizedBox(height: 14),
         ApehColumns(
@@ -77,7 +80,7 @@ class _WeaponPairs extends StatelessWidget {
   const _WeaponPairs({required this.state, required this.onCompare});
 
   final BuildsState state;
-  final ValueChanged<WeaponPair> onCompare;
+  final CompareWeapons onCompare;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +120,7 @@ class _WeaponPairs extends StatelessWidget {
                     style: TextStyle(color: context.colors.onSurfaceVariant),
                   ),
                   TextButton.icon(
-                    onPressed: () => onCompare(pair),
+                    onPressed: () => onCompare(pair.first, pair.second),
                     icon: const ApehIcon('weapons', size: 16),
                     label: Text(context.strings.compareWeapons),
                   ),

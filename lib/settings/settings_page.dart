@@ -13,6 +13,7 @@ import '../updates/windows_release.dart';
 import '../updates/windows_update_button.dart';
 import 'appearance_cubit.dart';
 import 'appearance_settings.dart';
+import 'windows_tray.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.client});
@@ -74,6 +75,16 @@ class SettingsPage extends StatelessWidget {
                       ? (value) => _save(context, cubit.setScale(value))
                       : null,
                 ),
+                if (WindowsTray.supported)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(strings.closeToTray),
+                    subtitle: Text(strings.closeToTrayHelp),
+                    value: settings.closeToTray,
+                    onChanged: ready
+                        ? (value) => _save(context, cubit.setCloseToTray(value))
+                        : null,
+                  ),
               ],
             ),
           ),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 
-import 'builds/build_guides.dart';
+import 'builds/builds_cubit.dart';
 import 'builds/builds_page.dart';
 import 'design/apeh_design.dart';
 import 'l10n/localization.dart';
@@ -34,14 +34,17 @@ class _ApehShellState extends State<ApehShell> {
     if (tab == _Tab.legends && !kIsWeb) {
       context.read<LegendsCubit>().refreshIfNeeded();
     }
+    if (tab == _Tab.builds && !_visited.contains(tab)) {
+      context.read<BuildsCubit>().refresh();
+    }
     setState(() {
       _visited.add(tab);
       _tab = tab;
     });
   }
 
-  void _compare(WeaponPair pair) {
-    context.read<WeaponsCubit>().selectPair(pair.first, pair.second);
+  void _compare(String first, String second) {
+    context.read<WeaponsCubit>().selectPair(first, second);
     _select(_Tab.weapons);
   }
 
