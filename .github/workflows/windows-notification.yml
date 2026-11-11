@@ -1,0 +1,28 @@
+name: Проверка уведомлений Apeh в трее Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Тег опубликованного выпуска
+        default: v1.0.5
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  notification:
+    runs-on: windows-2025
+    timeout-minutes: 6
+    env:
+      APEH_TEST_TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Дождаться уведомления об избранной карте в Windows
+        shell: powershell
+        run: |
+          $script = [scriptblock]::Create((Get-Content ./installer/verify-favorite-toast.ps1 -Raw -Encoding UTF8))
+          & $script -Tag $env:APEH_TEST_TAG
