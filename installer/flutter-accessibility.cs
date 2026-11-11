@@ -62,6 +62,15 @@ public static class FlutterAccessibility
         return FindControl(window, (accessible, child) => accessible.get_accValue(child) == value);
     }
 
+    public static Control FindLine(IntPtr window, string text)
+    {
+        return FindControl(window, (accessible, child) =>
+        {
+            var name = NameOf(accessible, child);
+            return name != null && Array.Exists(name.Split('\n'), line => line.Trim() == text);
+        });
+    }
+
     private static Control FindControl(IntPtr window, Func<IAccessible, int, bool> matches)
     {
         names.Clear();

@@ -146,7 +146,9 @@ function Assert-AppReadsSavedData($App) {
     (Wait-For 'вкладки сборок' { Find-AppControl $App 'Сборки' }).Invoke()
     foreach ($label in 'Тестовая сборка Apeh', 'Crypto · R-301 + Volt',
         'Ур. 2 · Got Eyes On You', 'Ур. 3 · Charged Up') {
-        $null = Wait-For "сборки в интерфейсе: $label" { Find-AppControl $App $label }
+        $null = Wait-For "сборки в интерфейсе: $label" {
+            [FlutterAccessibility]::FindLine($App.MainWindowHandle, $label)
+        }
     }
     (Wait-For 'возврата на вкладку карт' { Find-AppControl $App 'Карты' }).Invoke()
     Write-Output 'В «Моих сборках» открылась сохранённая сборка с легендой, оружием и обоими улучшениями.'
