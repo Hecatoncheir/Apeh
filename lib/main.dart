@@ -16,6 +16,7 @@ import 'rotation/rotation_reminders.dart';
 import 'rotation/rotation_repository.dart';
 import 'rotation/rotation_storage.dart';
 import 'rotation/rotation_view_model.dart';
+import 'updates/windows_update_button.dart';
 import 'weapons/weapon_repository.dart';
 import 'weapons/weapons_page.dart';
 import 'weapons/weapons_view_model.dart';
@@ -88,7 +89,10 @@ class _ApehAppState extends State<ApehApp> {
         body: IndexedStack(
           index: _tab,
           children: [
-            RotationPage(model: _model),
+            RotationPage(
+              model: _model,
+              updateAction: WindowsUpdateButton(client: _client),
+            ),
             if (_tab == 1 || _legends != null)
               LegendsPage(model: _legends)
             else

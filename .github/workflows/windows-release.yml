@@ -1,0 +1,108 @@
+name: Выпуск Apeh для Windows
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Сборка и проверка Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Проверить номер выпуска
+        run: |
+          if ($env:GITHUB_REF_NAME -cnotmatch '^v(\d+\.\d+\.\d+)$') {
+            throw 'Ожидается тег vMAJOR.MINOR.PATCH.'
+          }
+          $version = $Matches[1]
+          if (!(Select-String -Path pubspec.yaml -Pattern "^version:\s*$([regex]::Escape($version))(\+\d+)?\s*$" -Quiet)) {
+            throw 'Версия в pubspec.yaml должна совпадать с тегом.'
+          }
+          "APEH_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Установить Flutter
+        run: |
+          $sdk = "$env:RUNNER_TEMP/flutter"
+          git clone --depth 1 --branch 3.47.9 https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "$sdk/bin" >> $env:GITHUB_PATH
+      - name: Проверить исходники
+        run: |
+          flutter pub get --enforce-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          flutter analyze --no-pub
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          flutter test --no-pub
+      - name: Собрать приложение
+        run: flutter build windows --release --no-pub --dart-define=APEH_VERSION=$env:APEH_VERSION
+      - name: Установить Inno Setup
+        run: |
+          $file = "$env:RUNNER_TEMP/innosetup-6.7.3.exe"
+          $uri = 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe'
+          Invoke-WebRequest $uri -OutFile $file
+          if ((Get-FileHash $file).Hash -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') {
+            throw 'Контрольная сумма Inno Setup не совпала.'
+          }
+          $process = Start-Process $file -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { exit $process.ExitCode }
+      - name: Собрать установщик
+        run: ./installer/build.ps1 -Version $env:APEH_VERSION -Compiler "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe"
+      - name: Проверить установку и запуск
+        run: |
+          $target = "$env:RUNNER_TEMP\ApehSmoke"
+          $file = (Resolve-Path 'build/dist/Apeh-Setup-x64.exe').Path
+          $setup = Start-Process $file -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOICONS /DIR=`"$target`"" -WindowStyle Hidden -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { exit $setup.ExitCode }
+          $app = Start-Process "$target/apeh.exe" -WorkingDirectory $target -WindowStyle Hidden -PassThru
+          try {
+            Start-Sleep -Seconds 5
+            if ($app.HasExited) { throw "Apeh завершился при запуске ($($app.ExitCode))." }
+          } finally {
+            if (!$app.HasExited) { Stop-Process -Id $app.Id }
+          }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: apeh-windows-x64
+          path: build/dist/Apeh-Setup-x64.exe
+          if-no-files-found: error
+
+  publish:
+    name: Публикация в GitHub Releases
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: apeh-windows-x64
+          path: dist
+      - name: Опубликовать выпуск
+        shell: bash
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if draft=$(gh release view "$tag" --json isDraft --jq .isDraft); then
+            if [[ "$draft" != true ]]; then
+              echo "Выпуск $tag уже опубликован."
+              exit 0
+            fi
+            gh release upload "$tag" dist/Apeh-Setup-x64.exe --clobber
+          else
+            printf '%s\n' 'Скачайте **Apeh-Setup-x64.exe** и запустите установщик. После установки новые версии доступны через кнопку «Обновления Apeh» на вкладке «Карты».' > "$RUNNER_TEMP/notes.md"
+            gh release create "$tag" dist/Apeh-Setup-x64.exe --verify-tag --draft --title "Apeh ${tag#v}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+          gh release edit "$tag" --draft=false --latest

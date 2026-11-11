@@ -8,9 +8,10 @@ import 'rotation_time_zone.dart';
 import 'rotation_view_model.dart';
 
 class RotationPage extends StatelessWidget {
-  const RotationPage({super.key, required this.model});
+  const RotationPage({super.key, required this.model, this.updateAction});
 
   final RotationViewModel model;
+  final Widget? updateAction;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +23,7 @@ class RotationPage extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFF111419),
         actions: [
+          ?updateAction,
           if (model.reminders case final reminders?)
             ListenableBuilder(
               listenable: reminders,

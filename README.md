@@ -2,6 +2,10 @@
 
 Приложение-компаньон для Apex Legends на Flutter. Сразу после запуска показывает текущие и следующие карты Ranked, обычного BR, Mixtape и Wildcard, когда их публикует [Apex Legends Status](https://apexlegendsstatus.com/current-map).
 
+[Скачать Apeh для Windows x64](https://github.com/Hecatoncheir/Apeh/releases/latest/download/Apeh-Setup-x64.exe)
+
+Запустите установщик. Для обновления откройте «Карты», нажмите кнопку «Обновления Apeh» в верхней панели и выберите «Скачать и установить». Apeh проверит установщик и закроется после его запуска. Завершите установку, чтобы открыть новую версию.
+
 ```powershell
 flutter pub get
 flutter run -d windows
@@ -29,4 +33,4 @@ flutter run -d windows
 
 Для проверки черновика запустите `dart run bin/publish_builds.dart <файл>`. В черновике оставьте `revision` текущего опубликованного выпуска. Ключ `--publish` загружает проверенный выпуск в Gist. GitHub может отдавать предыдущий файл ещё несколько минут.
 
-Для сборки Windows выполните `flutter build windows`. На Linux для системного хранилища ключей требуется [libsecret](https://pub.dev/packages/flutter_secure_storage#linux).
+GitHub Actions собирает и публикует установщик Windows после отправки тега `vMAJOR.MINOR.PATCH`. Перед созданием тега обновите `version` в `pubspec.yaml`. Для локальной сборки Windows выполните `flutter build windows`. На Linux для системного хранилища ключей требуется [libsecret](https://pub.dev/packages/flutter_secure_storage#linux).
