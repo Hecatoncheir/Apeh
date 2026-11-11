@@ -38,6 +38,11 @@ public static class FlutterAccessibility
             get { return (Convert.ToInt32(accessible.get_accState(child)) & 0x10) != 0; }
         }
 
+        public bool IsSelected
+        {
+            get { return (Convert.ToInt32(accessible.get_accState(child)) & 0x02) != 0; }
+        }
+
     }
 
     public static Control Find(IntPtr window, string name, bool matchSuffix = false,
@@ -112,5 +117,54 @@ public static class FlutterAccessibility
         try { return accessible.get_accName(child); }
         catch (ArgumentException) { return null; }
         catch (COMException) { return null; }
+    }
+}
+
+public static class ApehTrayCheck
+{
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IconIdentifier
+    {
+        public int Size;
+        public IntPtr Window;
+        public uint Id;
+        public Guid Guid;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Rect
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
+    [DllImport("shell32.dll")]
+    private static extern int Shell_NotifyIconGetRect(ref IconIdentifier icon, out Rect rect);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
+
+    public static bool HasIcon(IntPtr window)
+    {
+        var icon = new IconIdentifier
+        {
+            Size = Marshal.SizeOf(typeof(IconIdentifier)),
+            Window = window,
+            Id = 1
+        };
+        Rect rect;
+        return Shell_NotifyIconGetRect(ref icon, out rect) == 0;
+    }
+
+    public static bool Minimize(IntPtr window)
+    {
+        return PostMessage(window, 0x0112, new IntPtr(0xf020), IntPtr.Zero);
+    }
+
+    public static bool ActivateIcon(IntPtr window)
+    {
+        return PostMessage(window, 0x8001, IntPtr.Zero, new IntPtr(0x10000 | 0x0400));
     }
 }

@@ -72,6 +72,20 @@ function Assert-Settings {
         ($reminders.playlists -join ',') -ne 'ranked,mixtape') {
         throw 'Настройки расписания или напоминаний изменились.'
     }
+    if (!$verifySavedData) { return }
+    if ($settings.'flutter.window.closeToTray' -cne $true) {
+        throw 'Настройка сворачивания в трей не сохранилась.'
+    }
+    $favorite = @($reminders.favorites)
+    if ($favorite.Count -ne 1 -or $favorite[0].map -cne 'Olympus' -or
+        ($favorite[0].playlists -join ',') -cne 'ranked,wildcard') {
+        throw 'Избранная карта или режимы её напоминаний не сохранились.'
+    }
+    $saved = $settings.'flutter.builds.saved.v1' | ConvertFrom-Json
+    if (@($saved).Count -ne 1 -or
+        (ConvertTo-Json -InputObject @($saved) -Depth 6 -Compress) -cne $savedBuildsJson) {
+        throw 'Сохранённая сборка изменилась.'
+    }
 }
 
 function Assert-ApiKey {
@@ -113,6 +127,49 @@ function Assert-AppReadsReminders($App) {
     (Wait-For 'закрытия настроек напоминаний' { Find-AppControl $App 'Отмена' }).Invoke()
 }
 
+function Assert-AppReadsSavedData($App) {
+    (Wait-For 'кнопки избранных карт' { Find-AppControl $App 'Избранные карты' }).Invoke()
+    $null = Wait-For 'избранной карты Olympus' { Find-AppControl $App 'Olympus' }
+    $null = Wait-For 'интервала напоминаний избранного' {
+        [FlutterAccessibility]::FindValue($App.MainWindowHandle, '1440')
+    }
+    $expected = @{ Ranked = $true; 'Обычный BR' = $false; Mixtape = $false; Wildcard = $true }
+    foreach ($mode in $expected.Keys) {
+        $chip = Wait-For "переключателя $mode у Olympus" { Find-AppControl $App $mode }
+        if (($chip.IsSelected -or $chip.IsChecked) -ne $expected[$mode]) {
+            throw "Выбор режима $mode для Olympus отличается от сохранённого."
+        }
+    }
+    (Wait-For 'закрытия избранных карт' { Find-AppControl $App 'Отмена' }).Invoke()
+    Write-Output 'В избранном открылась Olympus. Отмечены Ranked и Wildcard, интервал 1440 минут.'
+
+    (Wait-For 'вкладки сборок' { Find-AppControl $App 'Сборки' }).Invoke()
+    foreach ($label in 'Тестовая сборка Apeh', 'Crypto · R-301 + Volt',
+        'Ур. 2 · Got Eyes On You', 'Ур. 3 · Charged Up') {
+        $null = Wait-For "сборки в интерфейсе: $label" { Find-AppControl $App $label }
+    }
+    (Wait-For 'возврата на вкладку карт' { Find-AppControl $App 'Карты' }).Invoke()
+    Write-Output 'В «Моих сборках» открылась сохранённая сборка с легендой, оружием и обоими улучшениями.'
+}
+
+function Assert-AppUsesTray($App) {
+    $App.Refresh()
+    $window = $App.MainWindowHandle
+    if ($window -eq [IntPtr]::Zero -or ![ApehTrayCheck]::Minimize($window)) {
+        throw 'Не удалось свернуть окно Apeh.'
+    }
+    $null = Wait-For 'скрытия окна и появления значка Apeh в трее' {
+        ![ApehTrayCheck]::IsWindowVisible($window) -and [ApehTrayCheck]::HasIcon($window)
+    }
+    if ($App.HasExited -or ![ApehTrayCheck]::ActivateIcon($window)) {
+        throw 'Не удалось вернуть Apeh из трея.'
+    }
+    $null = Wait-For 'возврата окна Apeh из трея' {
+        [ApehTrayCheck]::IsWindowVisible($window) -and ![ApehTrayCheck]::HasIcon($window)
+    }
+    Write-Output 'Окно свернулось в трей по сохранённой настройке и восстановилось через значок.'
+}
+
 $version = [version]$Tag.Substring(1)
 $api = 'https://api.github.com/repos/Hecatoncheir/Apeh/releases'
 $headers = @{ Accept = 'application/vnd.github+json' }
@@ -126,6 +183,7 @@ $previous = $releases |
     Sort-Object { [version]$_.tag_name.Substring(1) } -Descending |
     Select-Object -First 1
 if (!$previous) { Write-Output 'Предыдущий выпуск отсутствует.'; return }
+$verifySavedData = [version]$previous.tag_name.Substring(1) -ge [version]'1.0.4'
 
 $asset = $previous.assets | Where-Object name -eq 'Apeh-Setup-x64.exe'
 $target = Join-Path $env:RUNNER_TEMP 'ApehUpgrade'
@@ -142,6 +200,22 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $preferences) -Force | Ou
 $data = @{
     'flutter.rotation.timeZone' = 'UTC'
     'flutter.rotation.reminders.v1' = '{"minutes":1440,"playlists":["ranked","mixtape"]}'
+}
+if ($verifySavedData) {
+    $data.'flutter.rotation.reminders.v1' =
+        '{"minutes":1440,"playlists":["ranked","mixtape"],"favorites":[{"map":"Olympus","playlists":["ranked","wildcard"]}]}'
+    $data.'flutter.window.closeToTray' = $true
+    $savedBuild = [ordered]@{
+        id = 'apeh-ci-crypto'
+        name = 'Тестовая сборка Apeh'
+        legend = [ordered]@{ id = 'crypto'; name = 'Crypto' }
+        first = [ordered]@{ id = 'r-301'; name = 'R-301' }
+        second = [ordered]@{ id = 'volt'; name = 'Volt' }
+        levelTwo = 'Got Eyes On You'
+        levelThree = 'Charged Up'
+    }
+    $savedBuildsJson = ConvertTo-Json -InputObject @($savedBuild) -Depth 6 -Compress
+    $data.'flutter.builds.saved.v1' = $savedBuildsJson
 }
 [IO.File]::WriteAllText($preferences, ($data | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
 $secureStorage = Join-Path (Split-Path -Parent $preferences) 'flutter_secure_storage.dat'
@@ -161,6 +235,10 @@ try {
     Assert-AppReadsApiKey $old
     Assert-AppReadsReminders $old
     Write-Output 'Предыдущая версия прочитала тестовый API-ключ, UTC и настройки напоминаний.'
+    if ($verifySavedData) {
+        Assert-AppReadsSavedData $old
+        Assert-AppUsesTray $old
+    }
     (Wait-For 'кнопки обновления' { Find-AppControl $old 'Обновления Apeh' }).Invoke()
     $null = Wait-For 'версии предыдущего Apeh в диалоге' {
         Find-AppControl $old "Установленная версия $($previous.tag_name.Substring(1))"
@@ -197,6 +275,10 @@ try {
         $null = Wait-For 'пояса UTC в обновлённом Apeh' { Find-AppControl $new 'UTC' }
         Assert-AppReadsApiKey $new
         Assert-AppReadsReminders $new
+        if ($verifySavedData) {
+            Assert-AppReadsSavedData $new
+            Assert-AppUsesTray $new
+        }
         (Wait-For 'окна обновлений новой версии' { Find-AppControl $new 'Обновления Apeh' }).Invoke()
         $null = Wait-For 'номера новой версии в окне обновлений' {
             Find-AppControl $new "Установленная версия $($Tag.Substring(1))"
