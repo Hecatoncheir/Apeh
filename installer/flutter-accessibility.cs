@@ -32,6 +32,11 @@ public static class FlutterAccessibility
         {
             accessible.accDoDefaultAction(child);
         }
+
+        public bool IsEnabled
+        {
+            get { return (Convert.ToInt32(accessible.get_accState(child)) & 1) == 0; }
+        }
     }
 
     public static Control Find(IntPtr window, string name)

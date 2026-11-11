@@ -1,7 +1,7 @@
 param([Parameter(Mandatory)][ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Tag)
 
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Security
 $accessibility = [Reflection.Assembly]::LoadWithPartialName('Accessibility')
 Add-Type -ReferencedAssemblies $accessibility.Location -Path (Resolve-Path ./installer/flutter-accessibility.cs).Path
 
@@ -40,11 +40,12 @@ function Invoke-Control($Control) {
     $pattern.Invoke()
 }
 
-function Find-AppControl($App, [string]$Name) {
+function Find-AppControl($App, [string]$Name, [switch]$RequireEnabled) {
     $App.Refresh()
     if ($App.HasExited) { throw "Apeh завершился ($($App.ExitCode))." }
     if ($App.MainWindowHandle -ne [IntPtr]::Zero) {
-        [FlutterAccessibility]::Find($App.MainWindowHandle, $Name)
+        $control = [FlutterAccessibility]::Find($App.MainWindowHandle, $Name)
+        if ($control -and (!$RequireEnabled -or $control.IsEnabled)) { return $control }
     }
 }
 
@@ -72,6 +73,27 @@ function Assert-Settings {
         ($reminders.playlists -join ',') -ne 'ranked,mixtape') {
         throw 'Настройки расписания или напоминаний изменились.'
     }
+}
+
+function Assert-ApiKey {
+    $plaintext = [Security.Cryptography.ProtectedData]::Unprotect(
+        [IO.File]::ReadAllBytes($secureStorage), $null, $dpapiScope
+    )
+    $values = [Text.Encoding]::UTF8.GetString($plaintext) | ConvertFrom-Json
+    if ($values.'rotation.alsKey' -cne $testKey) {
+        throw 'Тестовый API-ключ не сохранился в защищённом хранилище.'
+    }
+}
+
+function Assert-AppReadsApiKey($App) {
+    (Wait-For 'настройки API-ключа' {
+        Find-AppControl $App 'Настроить ключ API' -RequireEnabled
+    }).Invoke()
+    $null = Wait-For 'подтверждения сохранённого ключа в Apeh' {
+        Find-AppControl $App 'Удалить ключ'
+    }
+    (Wait-For 'закрытия окна API-ключа' { Find-AppControl $App 'Отмена' }).Invoke()
+    Assert-ApiKey
 }
 
 $version = [version]$Tag.Substring(1)
@@ -103,12 +125,22 @@ $data = @{
     'flutter.rotation.reminders.v1' = '{"minutes":1440,"playlists":["ranked","mixtape"]}'
 }
 [IO.File]::WriteAllText($preferences, ($data | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+$secureStorage = Join-Path (Split-Path -Parent $preferences) 'flutter_secure_storage.dat'
+$testKey = 'apeh-ci-' + [Guid]::NewGuid().ToString('N')
+$dpapiScope = [Security.Cryptography.DataProtectionScope]::CurrentUser
+$keyJson = @{ 'rotation.alsKey' = $testKey } | ConvertTo-Json -Compress
+$encrypted = [Security.Cryptography.ProtectedData]::Protect(
+    [Text.Encoding]::UTF8.GetBytes($keyJson), $null, $dpapiScope
+)
+[IO.File]::WriteAllBytes($secureStorage, $encrypted)
 Write-Output "Установлен выпуск $($previous.tag_name). Подготовлены настройки."
 
 $exe = Join-Path $target 'apeh.exe'
 $old = Start-Process $exe -WorkingDirectory $target -PassThru
 try {
     $null = Wait-For 'пояса UTC в предыдущем Apeh' { Find-AppControl $old 'UTC' }
+    Assert-AppReadsApiKey $old
+    Write-Output 'Предыдущая версия прочитала тестовый API-ключ.'
     (Wait-For 'кнопки обновления' { Find-AppControl $old 'Обновления Apeh' }).Invoke()
     $null = Wait-For 'версии предыдущего Apeh в диалоге' {
         Find-AppControl $old "Установленная версия $($previous.tag_name.Substring(1))"
@@ -135,6 +167,7 @@ try {
         throw 'Версия исполняемого файла после обновления отличается.'
     }
     Assert-Settings
+    Assert-ApiKey
     $new = Wait-For 'запуска обновлённого Apeh' {
         Get-Process apeh -ErrorAction SilentlyContinue |
             Where-Object Path -eq $exe |
@@ -146,11 +179,14 @@ try {
         $null = Wait-For 'номера новой версии в окне обновлений' {
             Find-AppControl $new "Установленная версия $($Tag.Substring(1))"
         }
+        (Wait-For 'закрытия окна обновлений' { Find-AppControl $new 'Закрыть' }).Invoke()
         Assert-Settings
+        Assert-AppReadsApiKey $new
+        Write-Output 'Новая версия прочитала тот же API-ключ без повторного ввода.'
     } finally {
         if (!$new.HasExited) { Stop-Process -Id $new.Id }
     }
-    Write-Output "Переход $($previous.tag_name) → $Tag подтверждён. UTC и настройки напоминаний сохранились."
+    Write-Output "Переход $($previous.tag_name) → $Tag подтверждён. UTC, настройки напоминаний и API-ключ сохранились."
 } finally {
     if (!$old.HasExited) { Stop-Process -Id $old.Id }
 }
