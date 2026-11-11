@@ -16,6 +16,7 @@ function Wait-For([string]$Description, [scriptblock]$Check, [int]$Seconds = 40)
         }
         Start-Sleep -Milliseconds 500
     } while ([DateTime]::UtcNow -lt $deadline)
+    Write-Host "Последние элементы Flutter: $([FlutterAccessibility]::LastNames)"
     throw "Не удалось дождаться: $Description"
 }
 

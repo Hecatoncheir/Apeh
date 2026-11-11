@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Accessibility;
 
 public static class FlutterAccessibility
 {
+    private static readonly List<string> names = new List<string>();
+    public static string LastNames { get { return string.Join(" | ", names); } }
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr FindWindowEx(
         IntPtr parent, IntPtr after, string className, string title);
@@ -12,12 +16,6 @@ public static class FlutterAccessibility
     private static extern int AccessibleObjectFromWindow(
         IntPtr window, uint objectId, ref Guid interfaceId,
         [MarshalAs(UnmanagedType.Interface)] out IAccessible accessible);
-
-    [DllImport("oleacc.dll")]
-    private static extern int AccessibleChildren(
-        IAccessible container, int start, int count,
-        [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2, ArraySubType = UnmanagedType.Struct)]
-        object[] children, out int obtained);
 
     public sealed class Control
     {
@@ -38,6 +36,7 @@ public static class FlutterAccessibility
 
     public static Control Find(IntPtr window, string name)
     {
+        names.Clear();
         var view = FindWindowEx(window, IntPtr.Zero, "FLUTTERVIEW", null);
         if (view == IntPtr.Zero) return null;
 
@@ -51,27 +50,37 @@ public static class FlutterAccessibility
 
     private static Control FindIn(IAccessible accessible, string name)
     {
-        if (accessible.get_accName(0) == name) return new Control(accessible, 0);
-
-        var children = new object[accessible.accChildCount];
-        if (children.Length == 0) return null;
+        var currentName = NameOf(accessible, 0);
+        if (!string.IsNullOrEmpty(currentName)) names.Add(currentName);
+        if (currentName == name) return new Control(accessible, 0);
 
         int count;
-        AccessibleChildren(accessible, 0, children.Length, children, out count);
-        for (var index = 0; index < count; index++)
+        try { count = accessible.accChildCount; }
+        catch (COMException) { return null; }
+        catch (ArgumentException) { return null; }
+        for (var child = 1; child <= count; child++)
         {
-            var node = children[index] as IAccessible;
+            IAccessible node = null;
+            try { node = accessible.get_accChild(child) as IAccessible; }
+            catch (ArgumentException) { }
+            catch (COMException) { }
             if (node != null)
             {
                 var found = FindIn(node, name);
                 if (found != null) return found;
             }
-            else if (children[index] is int &&
-                     accessible.get_accName(children[index]) == name)
+            else if (NameOf(accessible, child) == name)
             {
-                return new Control(accessible, (int)children[index]);
+                return new Control(accessible, child);
             }
         }
         return null;
+    }
+
+    private static string NameOf(IAccessible accessible, int child)
+    {
+        try { return accessible.get_accName(child); }
+        catch (ArgumentException) { return null; }
+        catch (COMException) { return null; }
     }
 }
