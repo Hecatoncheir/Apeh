@@ -1,90 +1,7 @@
 {
   "schema": 1,
-  "revision": 2,
-  "patch": "сезон 31 Cipher",
-  "patchHighlights": {
-    "title": "Cipher · 02.11.2026",
-    "source": "https://www.ea.com/games/apex-legends/apex-legends/news/cipher-patch-notes",
-    "changes": [
-      {
-        "section": "weapons",
-        "id": "wingman",
-        "name": "Wingman",
-        "ru": "Урон снизился с 50 до 45. Теперь использует тяжёлые патроны, второй Wingman включает режим Akimbo.",
-        "en": "Damage fell from 50 to 45. It now uses Heavy Ammo, and a second Wingman enables Akimbo."
-      },
-      {
-        "section": "weapons",
-        "id": "hemlok",
-        "name": "Hemlok",
-        "ru": "Вернулись одиночный огонь и очереди. Урон в корпус — 21.",
-        "en": "Single fire and burst fire are back. Body damage is 21."
-      },
-      {
-        "section": "weapons",
-        "id": "l-star",
-        "name": "L-STAR",
-        "ru": "Вернулся в обычную добычу. Урон снизился с 21 до 19, порог перегрева — с 28 до 22 выстрелов.",
-        "en": "Back in floor loot. Damage fell from 21 to 19 and the overheat threshold from 28 to 22 shots."
-      },
-      {
-        "section": "weapons",
-        "id": "eva-8",
-        "name": "EVA-8",
-        "ru": "Double Tap Trigger заменён на Disruptor Rounds.",
-        "en": "Disruptor Rounds replaced Double Tap Trigger."
-      },
-      {
-        "section": "weapons",
-        "id": "peacekeeper",
-        "name": "Peacekeeper",
-        "ru": "Скорострельность повышена. Затвор теперь улучшает и передёргивание, и темп стрельбы.",
-        "en": "Fires faster. Shotgun bolts now improve rechamber speed and fire rate."
-      },
-      {
-        "section": "weapons",
-        "id": "prowler",
-        "name": "Prowler",
-        "ru": "Следующую очередь теперь можно заранее поставить в очередь повторным нажатием.",
-        "en": "Tapping again can now queue the next burst."
-      },
-      {
-        "section": "weapons",
-        "id": "nemesis",
-        "name": "Nemesis",
-        "ru": "Вертикальная отдача увеличена. Следующую очередь можно поставить в очередь повторным нажатием.",
-        "en": "Vertical recoil increased. Tapping again can queue the next burst."
-      },
-      {
-        "section": "legends",
-        "id": "crypto",
-        "name": "Crypto",
-        "ru": "Дрон работает от батареи 25 секунд. На 2-м уровне Ally.MoveTo() заменён на Got Eyes On You, на 3-м Hackathon — на Charged Up.",
-        "en": "The drone has a 25-second battery. Got Eyes On You replaces Ally.MoveTo() at level 2, and Charged Up replaces Hackathon at level 3."
-      },
-      {
-        "section": "legends",
-        "id": "lifeline",
-        "name": "Lifeline",
-        "ru": "Перезарядка тактической способности сократилась с 25 до 15 с. Enhanced Radio перенесён на 2-й уровень. На 3-м появились Ultimate Cooldown и Revive Shield.",
-        "en": "Tactical cooldown dropped from 25 to 15 seconds. Enhanced Radio moved to level 2. Ultimate Cooldown and Revive Shield are now level 3 options."
-      },
-      {
-        "section": "legends",
-        "id": "revenant",
-        "name": "Revenant",
-        "ru": "Сокращена перезарядка тактической и ультимативной способностей. На 2-м уровне появилось Ever Lasting, на 3-м — Silence и No Escape.",
-        "en": "Tactical and ultimate cooldowns are shorter. Ever Lasting is a new level 2 option, and Silence and No Escape are new level 3 options."
-      },
-      {
-        "section": "legends",
-        "id": "loba",
-        "name": "Loba",
-        "ru": "Перезарядка тактической способности выросла с 25 до 30 с, ультимативной — со 120 до 150 с.",
-        "en": "Tactical cooldown increased from 25 to 30 seconds and ultimate cooldown from 120 to 150 seconds."
-      }
-    ]
-  },
+  "revision": 4,
+  "patch": "сезон 31 Cipher · 10.11.2026",
   "weaponPairs": [
     {
       "range": "close",
@@ -385,7 +302,7 @@
       "level2": [
         {
           "name": "Got Eyes On You",
-          "reason": "Метки держатся на 4 секунды дольше. У отряда больше времени на сближение."
+          "reason": "Метки держатся на 4 секунды дольше. Дроном теперь можно просканировать врагов через стекло, а отряд успеет подойти к входу, пока метки ещё видны."
         },
         {
           "name": "Network Expansion",
@@ -399,7 +316,7 @@
         },
         {
           "name": "Charged Up",
-          "reason": "Ещё 10 секунд заряда дрона помогают при длительной разведке."
+          "reason": "Дополнительные 10 секунд заряда полезны для длинного облёта. Если дрон уже начал оживление, разряд батареи больше его не прерывает."
         }
       ]
     },
@@ -889,5 +806,101 @@
         }
       ]
     }
+  },
+  "reviewedThrough": "2026-11-10T18:15:47Z",
+  "patchSources": [
+    "https://www.ea.com/games/apex-legends/apex-legends/news/cipher-patch-notes",
+    "https://steamcommunity.com/ogg/1172470/announcements/detail/680766201707627316",
+    "https://steamcommunity.com/ogg/1172470/announcements/detail/680766470739723362"
+  ],
+  "patchHighlights": {
+    "title": "Cipher · 10.11.2026",
+    "source": "https://www.ea.com/games/apex-legends/apex-legends/news/cipher-patch-notes",
+    "changes": [
+      {
+        "section": "weapons",
+        "id": "wingman",
+        "name": "Wingman",
+        "ru": "Урон снизился с 50 до 45. Теперь использует тяжёлые патроны, второй Wingman включает режим Akimbo.",
+        "en": "Damage fell from 50 to 45. It now uses Heavy Ammo, and a second Wingman enables Akimbo."
+      },
+      {
+        "section": "weapons",
+        "id": "hemlok",
+        "name": "Hemlok",
+        "ru": "Вернулись одиночный огонь и очереди. Урон в корпус — 21.",
+        "en": "Single fire and burst fire are back. Body damage is 21."
+      },
+      {
+        "section": "weapons",
+        "id": "l-star",
+        "name": "L-STAR",
+        "ru": "Вернулся в обычную добычу. Урон снизился с 21 до 19, порог перегрева — с 28 до 22 выстрелов.",
+        "en": "Back in floor loot. Damage fell from 21 to 19 and the overheat threshold from 28 to 22 shots."
+      },
+      {
+        "section": "weapons",
+        "id": "eva-8",
+        "name": "EVA-8",
+        "ru": "Double Tap Trigger заменён на Disruptor Rounds.",
+        "en": "Disruptor Rounds replaced Double Tap Trigger."
+      },
+      {
+        "section": "weapons",
+        "id": "peacekeeper",
+        "name": "Peacekeeper",
+        "ru": "Скорострельность повышена. Затвор теперь улучшает и передёргивание, и темп стрельбы.",
+        "en": "Fires faster. Shotgun bolts now improve rechamber speed and fire rate."
+      },
+      {
+        "section": "weapons",
+        "id": "prowler",
+        "name": "Prowler",
+        "ru": "Следующую очередь теперь можно заранее поставить в очередь повторным нажатием.",
+        "en": "Tapping again can now queue the next burst."
+      },
+      {
+        "section": "weapons",
+        "id": "nemesis",
+        "name": "Nemesis",
+        "ru": "Вертикальная отдача увеличена. Следующую очередь можно поставить в очередь повторным нажатием.",
+        "en": "Vertical recoil increased. Tapping again can queue the next burst."
+      },
+      {
+        "section": "legends",
+        "id": "crypto",
+        "name": "Crypto",
+        "ru": "Возврат дрона ускорен с 6 до 0,7 с. Дрон сканирует через стекло, а окончание таймера дрона больше не прерывает возрождение. В Cipher появились Got Eyes On You на 2-м уровне и Charged Up на 3-м.",
+        "en": "Drone recall dropped from 6 to 0.7 seconds. The drone scans through glass, and the battery timer no longer interrupts a revive. Cipher added Got Eyes On You at level 2 and Charged Up at level 3."
+      },
+      {
+        "section": "legends",
+        "id": "lifeline",
+        "name": "Lifeline",
+        "ru": "Перезарядка тактической способности сократилась с 25 до 15 с. Enhanced Radio перенесён на 2-й уровень. На 3-м появились Ultimate Cooldown и Revive Shield.",
+        "en": "Tactical cooldown dropped from 25 to 15 seconds. Enhanced Radio moved to level 2. Ultimate Cooldown and Revive Shield are now level 3 options."
+      },
+      {
+        "section": "legends",
+        "id": "revenant",
+        "name": "Revenant",
+        "ru": "Сокращена перезарядка тактической и ультимативной способностей. На 2-м уровне появилось Ever Lasting, на 3-м — Silence и No Escape.",
+        "en": "Tactical and ultimate cooldowns are shorter. Ever Lasting is a new level 2 option, and Silence and No Escape are new level 3 options."
+      },
+      {
+        "section": "legends",
+        "id": "loba",
+        "name": "Loba",
+        "ru": "Перезарядка тактической способности выросла с 25 до 30 с, ультимативной — со 120 до 150 с.",
+        "en": "Tactical cooldown increased from 25 to 30 seconds and ultimate cooldown from 120 to 150 seconds."
+      },
+      {
+        "section": "legends",
+        "id": "sparrow",
+        "name": "Sparrow",
+        "ru": "Исправлена ошибка, из-за которой метка Sparrow блокировала урон от метательных боеприпасов.",
+        "en": "The tracker dart no longer blocks damage from ordnance."
+      }
+    ]
   }
 }
