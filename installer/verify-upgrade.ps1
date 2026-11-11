@@ -98,7 +98,9 @@ function Assert-AppReadsApiKey($App) {
 
 $version = [version]$Tag.Substring(1)
 $api = 'https://api.github.com/repos/Hecatoncheir/Apeh/releases'
-$releases = Invoke-RestMethod "${api}?per_page=30" -UseBasicParsing
+$headers = @{ Accept = 'application/vnd.github+json' }
+if ($env:GH_TOKEN) { $headers.Authorization = "Bearer $env:GH_TOKEN" }
+$releases = Invoke-RestMethod "${api}?per_page=30" -UseBasicParsing -Headers $headers
 $previous = $releases |
     Where-Object {
         !$_.draft -and !$_.prerelease -and $_.tag_name -match '^v\d+\.\d+\.\d+$' -and
