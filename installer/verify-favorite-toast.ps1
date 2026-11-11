@@ -126,6 +126,8 @@ try {
     $notifier = $toastManager::CreateToastNotifier($appId)
     Write-Output "Уведомления в очереди после ошибки: $(@($notifier.GetScheduledToastNotifications()).Tag -join ', ')."
     Write-Output "Состояние уведомлений Windows: $($notifier.Setting)."
+    Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version | Format-Table | Out-String | Write-Output
+    Get-Service 'WpnService','WpnUserService*' | Select-Object Name, Status | Format-Table | Out-String | Write-Output
     Get-WinEvent -ListLog '*PushNotifications*','*TWinUI*' -ErrorAction SilentlyContinue |
         Select-Object LogName, IsEnabled, RecordCount | Format-Table | Out-String | Write-Output
     throw

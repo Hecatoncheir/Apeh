@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   notification:
-    runs-on: windows-2025
+    runs-on: windows-11-arm
     timeout-minutes: 6
     env:
       APEH_TEST_TAG: ${{ inputs.tag }}
