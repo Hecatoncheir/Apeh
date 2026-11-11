@@ -117,9 +117,9 @@ try {
             throw 'Apeh перестал работать в трее до доставки.'
         }
         if ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() -lt $change) { return }
-        if (Find-WindowsToast $message) { return 'баннер Windows' }
-        if (Find-DeliveredToast $expectedId $message) { return 'история уведомлений Windows' }
         if (& python $inboxProbe $expectedId $message) { return 'хранилище доставленных уведомлений Windows' }
+        if (Find-DeliveredToast $expectedId $message) { return 'история уведомлений Windows' }
+        if (Find-WindowsToast $message) { return 'баннер Windows' }
     } ($remaining + 75)
     Write-Output "Уведомление «$message» доставлено, пока Apeh оставался в трее. Подтверждение: $delivered."
 } catch {
