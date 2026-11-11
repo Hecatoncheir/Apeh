@@ -93,6 +93,26 @@ function Assert-AppReadsApiKey($App) {
     }
 }
 
+function Assert-AppReadsReminders($App) {
+    (Wait-For 'кнопки напоминаний' {
+        Find-AppControl $App 'Напоминания о смене карт'
+    }).Invoke()
+    $null = Wait-For 'интервала напоминаний в диалоге' {
+        [FlutterAccessibility]::FindValue($App.MainWindowHandle, '1440')
+    }
+    $expected = @{ Ranked = $true; 'Обычный BR' = $false; Mixtape = $true; Wildcard = $false }
+    foreach ($mode in $expected.Keys) {
+        $checkbox = Wait-For "флажка режима $mode" {
+            # ROLE_SYSTEM_CHECKBUTTON
+            [FlutterAccessibility]::Find($App.MainWindowHandle, $mode, $false, 0x2c)
+        }
+        if ($checkbox.IsChecked -ne $expected[$mode]) {
+            throw "Состояние напоминаний для режима $mode отличается от сохранённого."
+        }
+    }
+    (Wait-For 'закрытия настроек напоминаний' { Find-AppControl $App 'Отмена' }).Invoke()
+}
+
 $version = [version]$Tag.Substring(1)
 $api = 'https://api.github.com/repos/Hecatoncheir/Apeh/releases'
 $headers = @{ Accept = 'application/vnd.github+json' }
@@ -139,7 +159,8 @@ $old = Start-Process $exe -WorkingDirectory $target -PassThru
 try {
     $null = Wait-For 'пояса UTC в предыдущем Apeh' { Find-AppControl $old 'UTC' }
     Assert-AppReadsApiKey $old
-    Write-Output 'Предыдущая версия прочитала тестовый API-ключ.'
+    Assert-AppReadsReminders $old
+    Write-Output 'Предыдущая версия прочитала тестовый API-ключ, UTC и настройки напоминаний.'
     (Wait-For 'кнопки обновления' { Find-AppControl $old 'Обновления Apeh' }).Invoke()
     $null = Wait-For 'версии предыдущего Apeh в диалоге' {
         Find-AppControl $old "Установленная версия $($previous.tag_name.Substring(1))"
@@ -175,6 +196,7 @@ try {
     try {
         $null = Wait-For 'пояса UTC в обновлённом Apeh' { Find-AppControl $new 'UTC' }
         Assert-AppReadsApiKey $new
+        Assert-AppReadsReminders $new
         (Wait-For 'окна обновлений новой версии' { Find-AppControl $new 'Обновления Apeh' }).Invoke()
         $null = Wait-For 'номера новой версии в окне обновлений' {
             Find-AppControl $new "Установленная версия $($Tag.Substring(1))"

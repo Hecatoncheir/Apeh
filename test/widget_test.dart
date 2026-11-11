@@ -4,11 +4,13 @@ import 'package:apeh/rotation/rotation.dart';
 import 'package:apeh/rotation/rotation_notifications.dart';
 import 'package:apeh/rotation/rotation_reminder_plan.dart';
 import 'package:apeh/rotation/rotation_storage.dart';
+import 'package:apeh/settings/appearance_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'rotation_page_fixture.dart';
@@ -35,8 +37,12 @@ void main() {
       expect(find.text('Ranked'), findsOneWidget);
       expect(find.text('Обычный BR'), findsOneWidget);
       expect(find.text('Mixtape'), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Wildcard'), 220);
-      expect(find.text('Wildcard'), findsOneWidget);
+      await tester.tap(find.text('E-District'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AlertDialog, 'Ranked'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, 'Storm Point'), findsOneWidget);
+      await tester.tap(find.text('Закрыть'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('До смены '), findsWidgets);
 
       await tester.tap(find.byTooltip('Настроить ключ API'));
@@ -51,6 +57,9 @@ void main() {
       await tester.tap(find.text('Отмена'));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('Wildcard'));
+      await tester.pumpAndSettle();
+      expect(find.text('Wildcard'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
@@ -95,7 +104,10 @@ void main() {
     await tester.tap(find.byTooltip('Обновить карты'));
     await tester.pumpAndSettle();
     expect(first.plan.any((item) => item.body.contains('E-District')), isFalse);
-    expect(first.plan.any((item) => item.body.contains('World’s Edge')), isTrue);
+    expect(
+      first.plan.any((item) => item.body.contains('World’s Edge')),
+      isTrue,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
 
     online = false;
@@ -217,6 +229,87 @@ void main() {
     expect(find.textContaining('До смены 20 д '), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'Настройки интерфейса сохраняются, версия проверяется на GitHub',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1150, 850));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final platform = tester.binding.platformDispatcher;
+      platform.localeTestValue = const Locale('en');
+      platform.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(platform.clearLocaleTestValue);
+      addTearDown(platform.clearPlatformBrightnessTestValue);
+      PackageInfo.setMockInitialValues(
+        appName: 'Apeh',
+        packageName: 'apeh',
+        version: '1.0.1',
+        buildNumber: '2',
+        buildSignature: '',
+      );
+      var releaseChecks = 0;
+      final client = MockClient((request) async {
+        if (request.url.host == 'api.github.com') {
+          releaseChecks++;
+          expect(request.url.path, '/repos/Hecatoncheir/Apeh/releases/latest');
+          return http.Response(
+            '{"draft":false,"prerelease":false,"tag_name":"v1.0.2"}',
+            200,
+          );
+        }
+        return _publicResponse();
+      });
+      addTearDown(client.close);
+
+      Future<void> choose<T>(String option) async {
+        await tester.tap(find.byType(DropdownButton<T>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(option).last);
+        await tester.pumpAndSettle();
+      }
+
+      await tester.pumpWidget(ApehApp(client: client));
+      await tester.pumpAndSettle();
+      final settings = find.text('Настройки');
+      expect(tester.getBottomLeft(settings).dy, greaterThan(780));
+      await tester.tap(settings);
+      await tester.pumpAndSettle();
+      expect(find.text('Установленная версия 1.0.1'), findsOneWidget);
+      expect(releaseChecks, 0);
+      await choose<AppLanguage>('Английский');
+      expect(find.text('Appearance'), findsOneWidget);
+      await choose<ThemeMode>('Light');
+      await choose<int>('125 %');
+      final appearance = tester.element(find.text('Appearance'));
+      expect(Theme.of(appearance).brightness, Brightness.light);
+      expect(MediaQuery.sizeOf(appearance).width, 920);
+      await tester.tap(find.text('Check for updates'));
+      await tester.pumpAndSettle();
+      expect(releaseChecks, 1);
+      expect(find.text('Latest version 1.0.2'), findsOneWidget);
+      expect(find.text('Open release page'), findsOneWidget);
+
+      await choose<ThemeMode>('Dark');
+      expect(
+        Theme.of(tester.element(find.text('Appearance'))).brightness,
+        Brightness.dark,
+      );
+      await choose<ThemeMode>('Automatic');
+      await choose<AppLanguage>('Automatic');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(ApehApp(client: client));
+      await tester.pumpAndSettle();
+      expect(find.text('Map rotation'), findsOneWidget);
+      expect(find.textContaining('Time left'), findsWidgets);
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      final restored = tester.element(find.text('Appearance'));
+      expect(Theme.of(restored).brightness, Brightness.dark);
+      expect(MediaQuery.sizeOf(restored).width, 920);
+      expect(find.text('Automatic'), findsNWidgets(2));
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }
 
 class _ReminderDelivery implements RotationNotifications {

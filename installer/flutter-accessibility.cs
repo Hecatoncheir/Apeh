@@ -33,9 +33,31 @@ public static class FlutterAccessibility
             accessible.accDoDefaultAction(child);
         }
 
+        public bool IsChecked
+        {
+            get { return (Convert.ToInt32(accessible.get_accState(child)) & 0x10) != 0; }
+        }
+
     }
 
-    public static Control Find(IntPtr window, string name, bool matchSuffix = false)
+    public static Control Find(IntPtr window, string name, bool matchSuffix = false,
+        int role = 0)
+    {
+        return FindControl(window, (accessible, child) =>
+        {
+            var candidate = NameOf(accessible, child);
+            return candidate != null &&
+                (matchSuffix ? candidate.EndsWith(name, StringComparison.Ordinal) : candidate == name) &&
+                (role == 0 || Convert.ToInt32(accessible.get_accRole(child)) == role);
+        });
+    }
+
+    public static Control FindValue(IntPtr window, string value)
+    {
+        return FindControl(window, (accessible, child) => accessible.get_accValue(child) == value);
+    }
+
+    private static Control FindControl(IntPtr window, Func<IAccessible, int, bool> matches)
     {
         names.Clear();
         var view = FindWindowEx(window, IntPtr.Zero, "FLUTTERVIEW", null);
@@ -46,16 +68,14 @@ public static class FlutterAccessibility
         if (AccessibleObjectFromWindow(view, unchecked((uint)-4), ref id, out root) != 0)
             return null;
 
-        Predicate<string> matches = candidate => candidate != null &&
-            (matchSuffix ? candidate.EndsWith(name, StringComparison.Ordinal) : candidate == name);
         return FindIn(root, matches);
     }
 
-    private static Control FindIn(IAccessible accessible, Predicate<string> matches)
+    private static Control FindIn(IAccessible accessible, Func<IAccessible, int, bool> matches)
     {
         var currentName = NameOf(accessible, 0);
         if (!string.IsNullOrEmpty(currentName)) names.Add(currentName);
-        if (matches(currentName)) return new Control(accessible, 0);
+        if (Matches(accessible, 0, matches)) return new Control(accessible, 0);
 
         int count;
         try { count = accessible.accChildCount; }
@@ -72,12 +92,19 @@ public static class FlutterAccessibility
                 var found = FindIn(node, matches);
                 if (found != null) return found;
             }
-            else if (matches(NameOf(accessible, child)))
+            else if (Matches(accessible, child, matches))
             {
                 return new Control(accessible, child);
             }
         }
         return null;
+    }
+
+    private static bool Matches(IAccessible accessible, int child, Func<IAccessible, int, bool> matches)
+    {
+        try { return matches(accessible, child); }
+        catch (ArgumentException) { return false; }
+        catch (COMException) { return false; }
     }
 
     private static string NameOf(IAccessible accessible, int child)

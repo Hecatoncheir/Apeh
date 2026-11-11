@@ -30,8 +30,9 @@ bool isMapReminderId(int id) =>
 List<MapReminder> planMapReminders(
   RotationReminderSettings settings,
   RotationSnapshot? snapshot,
-  DateTime now,
-) {
+  DateTime now, {
+  bool english = false,
+}) {
   final reminders = <int, MapReminder>{};
   for (final mode in settings.playlists) {
     final rotation = snapshot?.playlists[mode];
@@ -55,10 +56,15 @@ List<MapReminder> planMapReminders(
         id: id,
         fireAt: fireAt,
         changeAt: changeAt,
-        title: 'Apeh · ${mode.label}',
-        body: settings.minutes == 0
-            ? 'Карта меняется на $map.'
-            : 'Следующая карта $map. До смены ${settings.minutes} мин.',
+        title:
+            'Apeh · ${english && mode == Playlist.battleRoyale ? 'Regular BR' : mode.label}',
+        body: switch ((english, settings.minutes)) {
+          (true, 0) => 'The map is changing to $map.',
+          (true, final minutes) => 'Next map: $map in $minutes min.',
+          (false, 0) => 'Карта меняется на $map.',
+          (false, final minutes) =>
+            'Следующая карта $map. До смены $minutes мин.',
+        },
       );
     }
   }

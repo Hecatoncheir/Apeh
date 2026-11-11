@@ -305,8 +305,14 @@ void main() {
     await tester.tap(find.text('Сравнить оружие'));
     await tester.pumpAndSettle();
     expect(find.text('Сравнение оружия'), findsOneWidget);
-    expect(find.text('R-301 Carbine'), findsOneWidget);
-    expect(find.text('VK-47 Flatline'), findsOneWidget);
+    expect(
+      find.widgetWithText(DropdownButton<Weapon>, 'R-301 Carbine'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(DropdownButton<Weapon>, 'VK-47 Flatline'),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -339,24 +345,47 @@ void main() {
 
     expect(find.text('Enhanced Radio'), findsOneWidget);
     expect(find.text('Revive Shield'), findsOneWidget);
-    expect(find.text('Мобильная поддержка'), findsWidgets);
+    await tester.tap(find.byType(DropdownButton<bool>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Мобильная поддержка').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Improved Flight'), findsOneWidget);
+    expect(find.text('Ultimate Cooldown'), findsOneWidget);
     await tester.tap(find.text('Lifeline'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Seer').last);
     await tester.pumpAndSettle();
     expect(find.text('Lasting Beats'), findsOneWidget);
-    expect(find.text('Energizing Focus'), findsOneWidget);
     expect(find.text('Home Base'), findsOneWidget);
+    await tester.tap(find.byType(DropdownButton<bool>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Поиск и преследование').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Energizing Focus'), findsOneWidget);
     expect(find.text('Split Focus'), findsOneWidget);
+    await tester.binding.setSurfaceSize(const Size(360, 850));
+    await tester.pumpAndSettle();
+    expect(find.text('Сборки для BR'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.binding.setSurfaceSize(const Size(1080, 880));
+    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Дальняя'));
+    await tester.tap(find.byType(DropdownButton<BuildRange>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Дальняя').last);
     await tester.pumpAndSettle();
     expect(find.text('G7 Scout + C.A.R.'), findsOneWidget);
     await tester.tap(find.text('Сравнить оружие').first);
     await tester.pumpAndSettle();
     expect(find.text('Сравнение оружия'), findsOneWidget);
-    expect(find.text('G7 Scout'), findsOneWidget);
-    expect(find.text('C.A.R. SMG'), findsOneWidget);
+    expect(
+      find.widgetWithText(DropdownButton<Weapon>, 'G7 Scout'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(DropdownButton<Weapon>, 'C.A.R. SMG'),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

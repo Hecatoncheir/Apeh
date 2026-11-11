@@ -72,7 +72,17 @@ void main() {
         return http.Response(_history, 200);
       }
       return http.Response(
-        _board(path.endsWith('/Diamond') ? '17.4' : '12.3'),
+        _board(path.endsWith('/Diamond') ? '17.4' : '12.3') +
+            List.generate(
+              28,
+              (index) =>
+                  '''
+<div class="legends-banner__item">
+  <img class="legends-banner__image" alt="Legend $index">
+  <div class="legends-banner__content">Legend $index<br><span>1%</span></div>
+</div>
+''',
+            ).join(),
         200,
       );
     });
@@ -95,7 +105,32 @@ void main() {
     expect(find.text('17,40%'), findsOneWidget);
     expect(find.text('+5,20 п. п. за 7 дней'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ListTile, 'Loba'));
+    await tester.tap(find.byKey(const ValueKey('Loba')));
+    await tester.pumpAndSettle();
+    expect(find.text('−0,10 п. п. за 7 дней'), findsOneWidget);
+    final pathfinder = tester.getTopLeft(
+      find.byKey(const ValueKey('Pathfinder')),
+    );
+    final loba = tester.getTopLeft(find.byKey(const ValueKey('Loba')));
+    expect(pathfinder.dy, loba.dy);
+    expect(pathfinder.dx, lessThan(loba.dx));
+    final lowerCard = find.byKey(const ValueKey('Legend 9'));
+    final beforeScroll = tester.getTopLeft(lowerCard);
+    expect(beforeScroll.dy, greaterThan(loba.dy));
+    final chart = find.text('Динамика выбора');
+    final chartPosition = tester.getTopLeft(chart);
+    final grid = find.byKey(const ValueKey('legend-pick-grid'));
+    final chartCard = find.ancestor(of: chart, matching: find.byType(Card));
+    final gridCard = find.ancestor(of: grid, matching: find.byType(Card));
+    expect(
+      tester.getSize(chartCard).height,
+      lessThan(tester.getSize(gridCard).height),
+    );
+    await tester.drag(grid, const Offset(0, -350));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(lowerCard).dy, lessThan(beforeScroll.dy));
+    expect(tester.getTopLeft(chart), chartPosition);
+    await tester.binding.setSurfaceSize(const Size(360, 850));
     await tester.pumpAndSettle();
     expect(find.text('−0,10 п. п. за 7 дней'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());

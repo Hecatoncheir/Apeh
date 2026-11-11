@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:pub_semver/pub_semver.dart';
 
 const _repository = 'Hecatoncheir/Apeh';
+const releaseBuildVersion = String.fromEnvironment('APEH_VERSION');
 const windowsInstallerName = 'Apeh-Setup-x64.exe';
 final _latestRelease = Uri.https(
   'api.github.com',
@@ -32,14 +33,8 @@ Future<WindowsRelease?> checkWindowsRelease(
   http.Client client,
   String current,
 ) async {
-  final response = await client
-      .get(_latestRelease, headers: {'Accept': 'application/vnd.github+json'})
-      .timeout(const Duration(seconds: 15));
-  if (response.statusCode == 404) return null;
-  if (response.statusCode != 200) {
-    throw const UpdateException('GitHub недоступен. Попробуйте позже.');
-  }
-  final data = jsonDecode(utf8.decode(response.bodyBytes));
+  final data = await _fetchLatestRelease(client);
+  if (data == null) return null;
   if (data case {
     'draft': false,
     'prerelease': false,
@@ -78,4 +73,33 @@ Future<WindowsRelease?> checkWindowsRelease(
     );
   }
   throw const UpdateException('GitHub вернул неполные данные о выпуске.');
+}
+
+Future<Version?> checkPublishedVersion(http.Client client) async {
+  final data = await _fetchLatestRelease(client);
+  if (data == null) return null;
+  if (data case {
+    'draft': false,
+    'prerelease': false,
+    'tag_name': final String tag,
+  }) {
+    final match = _stableTag.firstMatch(tag);
+    return match == null ? null : Version.parse(match[1]!);
+  }
+  throw const UpdateException('GitHub вернул неполные данные о выпуске.');
+}
+
+Future<Object?> _fetchLatestRelease(http.Client client) async {
+  final response = await client
+      .get(_latestRelease, headers: {'Accept': 'application/vnd.github+json'})
+      .timeout(const Duration(seconds: 15));
+  if (response.statusCode == 404) return null;
+  if (response.statusCode != 200) {
+    throw const UpdateException('GitHub недоступен. Попробуйте позже.');
+  }
+  final data = jsonDecode(utf8.decode(response.bodyBytes));
+  if (data == null) {
+    throw const UpdateException('GitHub вернул неполные данные о выпуске.');
+  }
+  return data;
 }

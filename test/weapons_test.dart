@@ -154,17 +154,23 @@ void main() {
 
     expect(find.textContaining('сохранённая копия'), findsOneWidget);
     expect(find.text('0,963 с'), findsOneWidget);
-    await tester.tap(find.text('r-301'));
+    await tester.tap(find.widgetWithText(DropdownButton<Weapon>, 'r-301'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('r-99').last);
     await tester.pumpAndSettle();
     expect(find.text('0,889 с'), findsOneWidget);
-    await tester.tap(find.text('Красный · мифический · 225'));
+    await tester.tap(find.byType(DropdownButton<Armor>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Красный · мифический · 225 HP').last);
     await tester.pumpAndSettle();
     expect(find.text('Нужна перезарядка'), findsOneWidget);
     await tester.tap(find.text('Магазин III уровня'));
     await tester.pumpAndSettle();
     expect(find.text('1,000 с'), findsOneWidget);
+    await tester.binding.setSurfaceSize(const Size(360, 850));
+    await tester.pumpAndSettle();
+    expect(find.text('1,000 с'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

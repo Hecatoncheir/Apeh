@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/localization.dart';
+import '../design/apeh_design.dart';
 import 'legend_board.dart';
 import 'legends_view_model.dart';
 
@@ -13,146 +15,260 @@ class LegendsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = model;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Apeh',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        backgroundColor: const Color(0xFF111419),
-        actions: [
-          if (data != null)
-            ListenableBuilder(
-              listenable: data,
-              builder: (context, _) => IconButton(
-                tooltip: 'Обновить популярность',
-                onPressed: data.loading ? null : data.refresh,
-                icon: const Icon(Icons.refresh),
-              ),
-            ),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: SafeArea(
-        child: data == null
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'Популярность легенд доступна в установленном Apeh.',
-                  ),
-                ),
-              )
-            : ListenableBuilder(
-                listenable: data,
-                builder: (context, _) => _content(context, data),
-              ),
-      ),
+    if (data == null) {
+      return ApehPage(
+        title: context.strings.legends,
+        description: context.strings.legendDescription,
+        children: [ApehPanel(child: Text(context.strings.nativeLegends))],
+      );
+    }
+    return ListenableBuilder(
+      listenable: data,
+      builder: (context, _) => _content(context, data),
     );
   }
 
   Widget _content(BuildContext context, LegendsViewModel model) {
     final board = model.board;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          children: [
-            Text(
-              'Популярность легенд',
-              style: Theme.of(context).textTheme.headlineLarge
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Доля выбранных легенд среди отслеживаемых игроков, все режимы.',
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: DropdownButton<LegendRank>(
-                value: model.rank,
-                onChanged: (rank) {
-                  if (rank != null) model.selectRank(rank);
-                },
-                items: [
-                  for (final rank in LegendRank.values)
-                    DropdownMenuItem(value: rank, child: Text(rank.label)),
-                ],
-              ),
-            ),
-            if (model.loading) const LinearProgressIndicator(),
-            if (model.failed)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text('Не удалось обновить данные Apex Legends Status.'),
-              ),
-            if (board != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Apex Legends Status · ${model.fromCache ? 'сохранено' : 'получено'} '
-                '${_date(board.fetchedAt.toLocal())}, '
-                '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(board.fetchedAt.toLocal()), alwaysUse24HourFormat: true)}',
-              ),
-              const SizedBox(height: 16),
-              LayoutBuilder(
-                builder: (context, size) {
-                  final chart = _TrendPanel(board: board, model: model);
-                  final list = _PickList(board: board, model: model);
-                  if (size.maxWidth < 760) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [chart, const SizedBox(height: 16), list],
-                    );
-                  }
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: list),
-                      const SizedBox(width: 16),
-                      Expanded(child: chart),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ],
+    return ApehPage(
+      title: context.strings.legends,
+      description: context.strings.legendDescription,
+      actions: [
+        SizedBox(
+          width: 190,
+          child: ApehSelect<LegendRank>(
+            label: context.strings.rank,
+            value: model.rank,
+            items: LegendRank.values,
+            labelFor: (rank) => switch (rank) {
+              LegendRank.all => context.strings.allPlayers,
+              LegendRank.unranked => context.strings.rookie,
+              LegendRank.bronze => context.strings.bronze,
+              LegendRank.silver => context.strings.silver,
+              LegendRank.gold => context.strings.gold,
+              LegendRank.platinum => context.strings.platinum,
+              LegendRank.diamond => context.strings.diamond,
+              LegendRank.masterPred => context.strings.masterPredator,
+            },
+            onChanged: model.selectRank,
+          ),
         ),
-      ),
+        IconButton(
+          tooltip: context.strings.refreshLegends,
+          onPressed: model.loading ? null : model.refresh,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+      body: board == null
+          ? null
+          : _LegendBoardLayout(board: board, model: model),
+      children: [
+        if (model.loading) const LinearProgressIndicator(),
+        if (model.failed)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(context.strings.legendLoadError),
+          ),
+        if (board != null) ...[
+          Text(
+            'Apex Legends Status · ${model.fromCache ? context.strings.saved : context.strings.fetched} '
+            '${_date(board.fetchedAt.toLocal())}, '
+            '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(board.fetchedAt.toLocal()), alwaysUse24HourFormat: true)}'
+            ' · ${context.strings.allModes}',
+            style: TextStyle(color: context.colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
     );
   }
 }
 
-class _PickList extends StatelessWidget {
+class _LegendBoardLayout extends StatelessWidget {
+  const _LegendBoardLayout({required this.board, required this.model});
+
+  final LegendBoard board;
+  final LegendsViewModel model;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final wide = constraints.maxWidth >= 680;
+      final chart = _TrendPanel(board: board, model: model, compact: !wide);
+      final grid = _PickList(board: board, model: model);
+      if (!wide) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 12,
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: constraints.maxHeight * .63,
+              ),
+              child: SingleChildScrollView(primary: false, child: chart),
+            ),
+            Expanded(child: grid),
+          ],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 14,
+        children: [
+          Expanded(flex: 6, child: grid),
+          Expanded(
+            flex: 5,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: SingleChildScrollView(primary: false, child: chart),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _PickList extends StatefulWidget {
   const _PickList({required this.board, required this.model});
 
   final LegendBoard board;
   final LegendsViewModel model;
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (final pick in board.picks)
-            ListTile(
-              dense: true,
-              selected: model.selection?.name == pick.name,
-              selectedTileColor: Theme.of(context)
-                  .colorScheme
-                  .secondaryContainer,
-              onTap: () => model.selectLegend(pick.name),
-              leading: _Portrait(pick: pick),
-              title: Text(pick.name),
-              trailing: Text(_percent(pick.percent)),
-            ),
-        ],
-      ),
-    );
+  State<_PickList> createState() => _PickListState();
+}
+
+class _PickListState extends State<_PickList> {
+  final _scroll = ScrollController();
+
+  @override
+  void didUpdateWidget(covariant _PickList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.board != widget.board) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scroll.hasClients) _scroll.jumpTo(0);
+      });
+    }
   }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ApehPanel(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                context.strings.pickRate,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            ApehIcon('legends', color: context.colors.onSurfaceVariant),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context)
+                .copyWith(scrollbars: false),
+            child: Scrollbar(
+              controller: _scroll,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                key: const ValueKey('legend-pick-grid'),
+                controller: _scroll,
+                padding: const EdgeInsets.only(right: 10),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    const gap = 8.0;
+                    final preferredWidth = MediaQuery.textScalerOf(context)
+                        .scale(100)
+                        .clamp(100.0, 155.0);
+                    final width = constraints.maxWidth;
+                    final columns = math.max(
+                      1,
+                      (width + gap) ~/ (preferredWidth + gap),
+                    );
+                    final tileWidth = (width - (columns - 1) * gap) / columns;
+                    return Wrap(
+                      spacing: gap,
+                      runSpacing: gap,
+                      children: [
+                        for (final pick in widget.board.picks)
+                          SizedBox(
+                            width: tileWidth,
+                            child: _LegendTile(
+                              pick: pick,
+                              selected:
+                                  widget.model.selection?.name == pick.name,
+                              onTap: () => widget.model.selectLegend(pick.name),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _LegendTile extends StatelessWidget {
+  const _LegendTile({
+    required this.pick,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final LegendPick pick;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    child: Material(
+      color: selected ? context.colors.secondaryContainer : context.subtleFill,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: selected ? context.colors.primary : Colors.transparent,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: ValueKey(pick.name),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+          child: Column(
+            spacing: 4,
+            children: [
+              _Portrait(pick: pick),
+              Text(pick.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(
+                _percent(context, pick.percent),
+                style: mono.copyWith(fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Portrait extends StatelessWidget {
@@ -163,9 +279,23 @@ class _Portrait extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final portrait = pick.portrait;
-    const placeholder = Icon(Icons.person_outline);
+    const size = 66.0;
+    final placeholder = ColoredBox(
+      color: context.colors.outlineVariant,
+      child: Center(
+        child: Text(
+          pick.name
+              .split(' ')
+              .where((word) => word.isNotEmpty)
+              .take(2)
+              .map((word) => word.characters.first)
+              .join(),
+          style: display(21).copyWith(color: context.colors.onSurface),
+        ),
+      ),
+    );
     return SizedBox.square(
-      dimension: 36,
+      dimension: size,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(7),
         child: portrait == null
@@ -173,7 +303,10 @@ class _Portrait extends StatelessWidget {
             : Image.network(
                 portrait.toString(),
                 fit: BoxFit.cover,
-                cacheWidth: 96,
+                alignment: Alignment.topCenter,
+                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
+                excludeFromSemantics: true,
                 errorBuilder: (_, _, _) => placeholder,
               ),
       ),
@@ -182,51 +315,57 @@ class _Portrait extends StatelessWidget {
 }
 
 class _TrendPanel extends StatelessWidget {
-  const _TrendPanel({required this.board, required this.model});
+  const _TrendPanel({
+    required this.board,
+    required this.model,
+    required this.compact,
+  });
 
   final LegendBoard board;
   final LegendsViewModel model;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final selected = model.selection;
     final points = board.history[selected?.name] ?? const <PickPoint>[];
-    final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Динамика выбора', style: theme.textTheme.titleLarge),
-            DropdownButton<String>(
-              isExpanded: true,
+    return ApehPanel(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.strings.pickTrend,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          if (compact) ...[
+            const SizedBox(height: 5),
+            if (selected != null) Text(selected.name),
+          ] else ...[
+            const SizedBox(height: 12),
+            ApehSelect<String>(
+              label: context.strings.legend,
               value: selected?.name,
-              onChanged: (name) {
-                if (name != null) model.selectLegend(name);
-              },
-              items: [
-                for (final pick in board.picks)
-                  DropdownMenuItem(value: pick.name, child: Text(pick.name)),
-              ],
+              items: board.picks.map((pick) => pick.name),
+              onChanged: model.selectLegend,
             ),
-            const SizedBox(height: 8),
-            if (points.isEmpty)
-              const Text('Дневная история для этой легенды сейчас недоступна.')
-            else
-              _TrendChart(points: points),
           ],
-        ),
+          SizedBox(height: compact ? 8 : 14),
+          if (points.isEmpty)
+            Text(context.strings.historyUnavailable)
+          else
+            _TrendChart(points: points, height: compact ? 104 : 144),
+        ],
       ),
     );
   }
 }
 
 class _TrendChart extends StatelessWidget {
-  const _TrendChart({required this.points});
+  const _TrendChart({required this.points, required this.height});
 
   final List<PickPoint> points;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -241,6 +380,7 @@ class _TrendChart extends StatelessWidget {
     final delta = baseline == null ? null : latest.percent - baseline.percent;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Wrap(
@@ -248,12 +388,19 @@ class _TrendChart extends StatelessWidget {
           runSpacing: 4,
           children: [
             Text(
-              '${_percent(latest.percent)} · ${_date(latest.day)}',
-              style: Theme.of(context).textTheme.titleMedium,
+              '${_percent(context, latest.percent)} · ${_date(latest.day)}',
+              style: mono.copyWith(fontSize: 21),
             ),
             if (delta != null)
               Text(
-                '${delta >= 0 ? '+' : '−'}${_number(delta.abs())} п. п. за 7 дней',
+                context.strings.weekDelta(
+                  '${delta >= 0 ? '+' : '−'}${_number(context, delta.abs())}',
+                ),
+                style: mono.copyWith(
+                  color: delta >= 0
+                      ? context.positiveText
+                      : context.negativeText,
+                ),
               ),
           ],
         ),
@@ -262,19 +409,24 @@ class _TrendChart extends StatelessWidget {
           children: [
             SizedBox(
               width: 64,
-              height: 144,
+              height: height,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [Text(_percent(max)), Text(_percent(min))],
+                children: [
+                  Text(_percent(context, max)),
+                  Text(_percent(context, min)),
+                ],
               ),
             ),
             Expanded(
               child: Semantics(
-                label:
-                    'Дневная доля выбора с ${_date(points.first.day)} по ${_date(latest.day)}',
+                label: context.strings.chartSemantics(
+                  _date(points.first.day),
+                  _date(latest.day),
+                ),
                 child: SizedBox(
-                  height: 144,
+                  height: height,
                   child: CustomPaint(
                     painter: _TrendPainter(points, min, max, colors),
                   ),
@@ -318,6 +470,8 @@ class _TrendPainter extends CustomPainter {
       ..color = colors.primary
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
+    final area = Paint()..color = colors.secondaryContainer;
+    final dot = Paint()..color = colors.primaryContainer;
     final start = points.first.day;
     final span = math.max(1, points.last.day.difference(start).inDays);
     Offset? previous;
@@ -327,9 +481,17 @@ class _TrendPainter extends CustomPainter {
       final y = size.height * (max - point.percent) / (max - min);
       final position = Offset(x, y);
       if (previous != null && point.day.difference(previousDay!).inDays == 1) {
+        final fill = Path()
+          ..moveTo(previous.dx, size.height)
+          ..lineTo(previous.dx, previous.dy)
+          ..lineTo(x, y)
+          ..lineTo(x, size.height)
+          ..close();
+        canvas.drawPath(fill, area);
         canvas.drawLine(previous, position, line);
       }
-      canvas.drawCircle(position, 1.9, line);
+      canvas.drawCircle(position, 3, line);
+      canvas.drawCircle(position, 2, dot);
       previous = position;
       previousDay = point.day;
     }
@@ -343,5 +505,10 @@ class _TrendPainter extends CustomPainter {
 String _date(DateTime value) =>
     '${value.day.toString().padLeft(2, '0')}.${value.month.toString().padLeft(2, '0')}';
 
-String _number(double value) => value.toStringAsFixed(2).replaceAll('.', ',');
-String _percent(double value) => '${_number(value)}%';
+String _number(BuildContext context, double value) {
+  final number = value.toStringAsFixed(2);
+  return context.english ? number : number.replaceAll('.', ',');
+}
+
+String _percent(BuildContext context, double value) =>
+    '${_number(context, value)}%';

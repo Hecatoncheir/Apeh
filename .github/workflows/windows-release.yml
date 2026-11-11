@@ -109,7 +109,7 @@ jobs:
             fi
             gh release upload "$tag" dist/Apeh-Setup-x64.exe --clobber
           else
-            printf '%s\n' 'Скачайте **Apeh-Setup-x64.exe** и запустите установщик. После установки новые версии доступны через кнопку «Обновления Apeh» на вкладке «Карты».' > "$RUNNER_TEMP/notes.md"
+            printf '%s\n' 'Скачайте **Apeh-Setup-x64.exe** и запустите установщик. Проверка обновлений доступна в «Настройках» и через кнопку «Обновления Apeh» на вкладке «Карты».' > "$RUNNER_TEMP/notes.md"
             gh release create "$tag" dist/Apeh-Setup-x64.exe --verify-tag --draft --title "Apeh ${tag#v}" --notes-file "$RUNNER_TEMP/notes.md"
           fi
           gh release edit "$tag" --draft=false --latest

@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/localization.dart';
 import 'rotation.dart';
 import 'rotation_reminder_plan.dart';
+import 'rotation_ui_text.dart';
 
 class RotationReminderDialog extends StatefulWidget {
   const RotationReminderDialog({super.key, required this.settings});
@@ -37,7 +39,7 @@ class _RotationReminderDialogState extends State<RotationReminderDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       scrollable: true,
-      title: const Text('Напоминания о смене карт'),
+      title: Text(context.strings.reminders),
       content: Form(
         key: _form,
         child: Column(
@@ -47,7 +49,7 @@ class _RotationReminderDialogState extends State<RotationReminderDialog> {
             for (final mode in Playlist.values)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(mode.label),
+                title: Text(playlistLabel(context, mode)),
                 value: _selected.contains(mode),
                 onChanged: (value) => setState(() {
                   if (value == true) {
@@ -62,16 +64,18 @@ class _RotationReminderDialogState extends State<RotationReminderDialog> {
               controller: _minutes,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'За сколько минут',
-                helperText: '0 — в момент смены карты',
+              decoration: InputDecoration(
+                labelText: context.strings.reminderLead,
+                helperText: context.strings.reminderLeadHelp,
               ),
               validator: (value) {
                 final minutes = int.tryParse(value ?? '');
                 if (minutes == null ||
                     minutes < 0 ||
                     minutes > RotationReminderSettings.maxMinutes) {
-                  return 'Введите от 0 до ${RotationReminderSettings.maxMinutes} минут';
+                  return context.strings.reminderLeadError(
+                    '${RotationReminderSettings.maxMinutes}',
+                  );
                 }
                 return null;
               },
@@ -79,7 +83,7 @@ class _RotationReminderDialogState extends State<RotationReminderDialog> {
             ),
             if (defaultTargetPlatform == TargetPlatform.linux) ...[
               const SizedBox(height: 12),
-              const Text('На Linux напоминания приходят, пока Apeh открыт.'),
+              Text(context.strings.linuxReminders),
             ],
           ],
         ),
@@ -87,9 +91,9 @@ class _RotationReminderDialogState extends State<RotationReminderDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Отмена'),
+          child: Text(context.strings.cancel),
         ),
-        FilledButton(onPressed: _save, child: const Text('Сохранить')),
+        FilledButton(onPressed: _save, child: Text(context.strings.save)),
       ],
     );
   }

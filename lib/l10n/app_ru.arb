@@ -1,0 +1,296 @@
+{
+  "@@locale": "ru",
+  "maps": "Карты",
+  "legends": "Легенды",
+  "weapons": "Оружие",
+  "builds": "Сборки",
+  "settings": "Настройки",
+  "appearance": "Внешний вид",
+  "language": "Язык приложения",
+  "automatic": "Автоматически",
+  "russian": "Русский",
+  "english": "Английский",
+  "theme": "Тема",
+  "lightTheme": "Светлая",
+  "darkTheme": "Тёмная",
+  "scale": "Масштаб интерфейса",
+  "settingsSaveError": "Не удалось сохранить настройки.",
+  "updates": "Обновления Apeh",
+  "checkUpdates": "Проверить обновления",
+  "installedVersion": "Установленная версия {version}",
+  "@installedVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "latestVersion": "Последняя версия {version}",
+  "@latestVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "checkingUpdates": "Проверяем наличие обновлений…",
+  "noUpdates": "Новых версий нет.",
+  "checkUpdatesFailed": "Не удалось проверить обновления.",
+  "releasePage": "Открыть страницу релиза",
+  "downloadInstall": "Скачать и установить",
+  "installChecking": "Скачиваем и проверяем установщик…",
+  "installFailed": "Не удалось запустить обновление.",
+  "availableUpdate": "Доступна версия {version}. Apeh закроется, когда запустится установщик.",
+  "@availableUpdate": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "close": "Закрыть",
+  "retry": "Повторить",
+  "cancel": "Отмена",
+  "save": "Сохранить",
+  "rotation": "Ротация карт",
+  "rotationDescription": "Текущие и следующие карты",
+  "timeZone": "Часовой пояс",
+  "deviceZone": "Пояс устройства",
+  "regularBr": "Обычный BR",
+  "reminders": "Напоминания о смене карт",
+  "refreshMaps": "Обновить карты",
+  "configureApiKey": "Настроить ключ API",
+  "demoSchedule": "Демонстрация · пример расписания",
+  "cachedSchedule": "Сохранённое расписание · {time}",
+  "@cachedSchedule": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "updatedSchedule": "Apex Legends Status · обновлено {time}",
+  "@updatedSchedule": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "nativeSchedule": "Актуальное расписание доступно в установленном приложении.",
+  "openDemo": "Открыть демонстрацию",
+  "noScheduleFromSource": "Источник не передал расписание",
+  "loadingSchedule": "Загружаем расписание…",
+  "scheduleUnavailable": "Расписание недоступно",
+  "searchZone": "Найти город или пояс",
+  "zoneNotFound": "Часовой пояс не найден",
+  "alsKey": "Ключ Apex Legends Status",
+  "apiKey": "Ключ API",
+  "apiKeyHelp": "Без ключа Apeh загружает расписание с сайта.",
+  "enterApiKey": "Вставьте ключ API",
+  "removeApiKey": "Удалить ключ",
+  "now": "Сейчас",
+  "unknownMap": "Текущая карта неизвестна",
+  "timeRemaining": "До смены",
+  "rotationProgress": "Ход ротации",
+  "next": "Далее",
+  "noData": "Нет данных",
+  "startsAt": "с {time}",
+  "@startsAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "startsIn": "через {duration}",
+  "@startsIn": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "dateAtTime": "{date} в {time}",
+  "@dateAtTime": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "daysClock": "{days} д {time}",
+  "@daysClock": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderLead": "За сколько минут",
+  "reminderLeadHelp": "0 — в момент смены карты",
+  "reminderLeadError": "Введите от 0 до {max} минут",
+  "@reminderLeadError": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "linuxReminders": "На Linux напоминания приходят, пока Apeh открыт.",
+  "legendDescription": "Популярность и динамика выбора",
+  "nativeLegends": "Популярность легенд доступна в установленном Apeh.",
+  "rank": "Ранг",
+  "refreshLegends": "Обновить популярность",
+  "legendLoadError": "Не удалось обновить данные Apex Legends Status.",
+  "saved": "сохранено",
+  "fetched": "получено",
+  "allModes": "все режимы",
+  "pickRate": "Частота выбора",
+  "pickTrend": "Динамика выбора",
+  "legend": "Легенда",
+  "historyUnavailable": "Дневная история для этой легенды сейчас недоступна.",
+  "weekDelta": "{value} п. п. за 7 дней",
+  "@weekDelta": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "chartSemantics": "Дневная доля выбора с {start} по {end}",
+  "@chartSemantics": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "allPlayers": "Все игроки",
+  "rookie": "Новичок / без ранга",
+  "bronze": "Бронза",
+  "silver": "Серебро",
+  "gold": "Золото",
+  "platinum": "Платина",
+  "diamond": "Алмаз",
+  "masterPredator": "Мастер / Хищник",
+  "weaponDescription": "Сравнение оружия",
+  "refreshWeapons": "Обновить каталог оружия",
+  "weaponsLoadError": "Не удалось обновить каталог Apex Weapon Stats.",
+  "weaponUnavailable": "Один из выбранных вариантов отсутствует в каталоге. Выберите замену.",
+  "cachedCopy": "сохранённая копия",
+  "firstWeapon": "Первое оружие",
+  "secondWeapon": "Второе оружие",
+  "targetArmor": "Броня цели",
+  "extendedMagazine": "Магазин III уровня",
+  "weaponType": "Тип",
+  "ammo": "Боеприпасы",
+  "damagePerShot": "Урон за выстрел",
+  "projectiles": "Снаряды за выстрел",
+  "roundsPerMinute": "Выстрелов в минуту",
+  "burstShots": "Выстрелов в очереди",
+  "damagePerSecond": "Урон в секунду",
+  "magazine": "Магазин",
+  "stats": "Характеристики",
+  "metric": "Показатель",
+  "noMagazine": "Без магазина",
+  "carePackage": "Груз снабжения",
+  "timeToKill": "Время до убийства",
+  "bodyHits": "Попадания в корпус · {health} HP",
+  "@bodyHits": {
+    "placeholders": {
+      "health": {
+        "type": "String"
+      }
+    }
+  },
+  "ttkHelp": "От первого выстрела. Все попадания в корпус вблизи, включая дробины. Подготовка, перезарядка и отложенные эффекты в TTK не входят.",
+  "reloadNeeded": "Нужна перезарядка",
+  "seconds": "{value} с",
+  "@seconds": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "shots": "Выстрелов {count}",
+  "@shots": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "ammoSpent": "расход патронов {count}",
+  "@ammoSpent": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "noShield": "Без щита",
+  "whiteShield": "Белый",
+  "blueShield": "Синий",
+  "purpleShield": "Фиолетовый",
+  "redShield": "Красный · мифический",
+  "assaultRifle": "Штурмовая винтовка",
+  "smg": "Пистолет-пулемёт",
+  "lmg": "Пулемёт",
+  "marksman": "Марксманское",
+  "sniper": "Снайперская винтовка",
+  "shotgun": "Дробовик",
+  "pistol": "Пистолет",
+  "lightAmmo": "лёгкие",
+  "heavyAmmo": "тяжёлые",
+  "energyAmmo": "энергетические",
+  "sniperAmmo": "снайперские",
+  "shotgunAmmo": "дробь",
+  "arrowAmmo": "стрелы",
+  "brBuilds": "Сборки для BR",
+  "buildDescription": "Пары оружия и улучшения легенд",
+  "guideEdition": "выпуск {revision}",
+  "@guideEdition": {
+    "placeholders": {
+      "revision": {
+        "type": "String"
+      }
+    }
+  },
+  "checkingGuides": "Проверяем рекомендации…",
+  "noGuideUpdates": "Новых выпусков нет.",
+  "guidesUpdated": "Рекомендации обновлены.",
+  "guideLoadError": "Не удалось открыть рекомендации.",
+  "guideOffline": "Обновление недоступно. Открыт выпуск с устройства.",
+  "weaponPairs": "Пары оружия",
+  "distance": "Дистанция",
+  "compareWeapons": "Сравнить оружие",
+  "legendUpgrades": "Улучшения легенд",
+  "refreshGuide": "Обновить справочник",
+  "guideCache": "Справочник недоступен. Открыта сохранённая копия.",
+  "upgradeLoadError": "Не удалось обновить улучшения.",
+  "playStyle": "Стиль игры",
+  "guideMismatch": "Состав улучшений в справочнике отличается от этого выпуска.",
+  "guideSource": "Справочник apex.source.gs",
+  "level": "Ур. {number}",
+  "@level": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "closeRange": "Ближняя",
+  "mediumRange": "Средняя",
+  "longRange": "Дальняя"
+}

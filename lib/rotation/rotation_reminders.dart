@@ -17,6 +17,7 @@ class RotationReminders extends ChangeNotifier {
   String? _message;
   bool _busy = true;
   bool _disposed = false;
+  bool _english = false;
   Future<void> _pending = Future.value();
 
   RotationReminderSettings get settings => _settings;
@@ -43,6 +44,12 @@ class RotationReminders extends ChangeNotifier {
     if (_settings.enabled) unawaited(_sync());
   }
 
+  void setEnglish(bool value) {
+    if (_english == value) return;
+    _english = value;
+    if (_settings.enabled) unawaited(_sync());
+  }
+
   Future<void> save(RotationReminderSettings value) async {
     if (_disposed || _busy) return;
     _busy = true;
@@ -64,7 +71,12 @@ class RotationReminders extends ChangeNotifier {
     _pending = _pending.then((_) async {
       if (_disposed) return;
       try {
-        final plan = planMapReminders(_settings, _snapshot, DateTime.now());
+        final plan = planMapReminders(
+          _settings,
+          _snapshot,
+          DateTime.now(),
+          english: _english,
+        );
         _message = await _notifications.sync(
           plan,
           enabled: _settings.enabled,
