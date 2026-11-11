@@ -1,105 +1,119 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'rotation.dart';
 import 'rotation_notifications.dart';
 import 'rotation_reminder_plan.dart';
 import 'rotation_storage.dart';
 
-class RotationReminders extends ChangeNotifier {
-  RotationReminders(this._storage, this._notifications);
+typedef ReminderState = ({
+  RotationReminderSettings settings,
+  bool busy,
+  String? message,
+});
+
+class RotationReminders extends Cubit<ReminderState> {
+  RotationReminders(this._storage, this._notifications)
+    : super((
+        settings: RotationReminderSettings.disabled,
+        busy: true,
+        message: null,
+      ));
 
   final RotationStorage _storage;
   final RotationNotifications _notifications;
-  RotationReminderSettings _settings = RotationReminderSettings.disabled;
   RotationSnapshot? _snapshot;
-  String? _message;
-  bool _busy = true;
-  bool _disposed = false;
   bool _english = false;
   Future<void> _pending = Future.value();
-
-  RotationReminderSettings get settings => _settings;
-  String? get message => _message;
-  bool get busy => _busy;
 
   Future<void> restore(RotationSnapshot? snapshot) async {
     _snapshot = snapshot;
     try {
       final saved = await _storage.readReminders();
-      if (_disposed || saved == null) return;
-      _settings = saved;
+      if (isClosed || saved == null) return;
+      _setSettings(saved);
       await _sync();
     } on Exception {
-      _message = 'Не удалось прочитать настройки напоминаний.';
+      _setMessage('Не удалось прочитать настройки напоминаний.');
     } finally {
-      _busy = false;
-      _notify();
+      _setBusy(false);
     }
   }
 
   void updateSchedule(RotationSnapshot snapshot) {
     _snapshot = snapshot;
-    if (_settings.enabled) unawaited(_sync());
+    if (state.settings.enabled) unawaited(_sync());
   }
 
   void setEnglish(bool value) {
     if (_english == value) return;
     _english = value;
-    if (_settings.enabled) unawaited(_sync());
+    if (state.settings.enabled) unawaited(_sync());
   }
 
   Future<void> save(RotationReminderSettings value) async {
-    if (_disposed || _busy) return;
-    _busy = true;
-    _notify();
+    if (isClosed || state.busy) return;
+    _setBusy(true);
     try {
       await _storage.saveReminders(value);
-      if (_disposed) return;
-      _settings = value;
+      if (isClosed) return;
+      _setSettings(value);
       await _sync(requestPermission: value.enabled);
     } on Exception {
-      _message = 'Не удалось сохранить настройки напоминаний.';
+      _setMessage('Не удалось сохранить настройки напоминаний.');
     } finally {
-      _busy = false;
-      _notify();
+      _setBusy(false);
     }
   }
 
   Future<void> _sync({bool requestPermission = false}) {
     _pending = _pending.then((_) async {
-      if (_disposed) return;
+      if (isClosed) return;
+      final settings = state.settings;
       try {
         final plan = planMapReminders(
-          _settings,
+          settings,
           _snapshot,
           DateTime.now(),
           english: _english,
         );
-        _message = await _notifications.sync(
+        final message = await _notifications.sync(
           plan,
-          enabled: _settings.enabled,
-          requestPermission: requestPermission && _settings.enabled,
+          enabled: settings.enabled,
+          requestPermission: requestPermission && settings.enabled,
         );
+        _setMessage(message);
       } catch (error) {
         debugPrint('Не удалось запланировать напоминания Apeh: $error');
-        _message =
-            'Не удалось настроить уведомления. Проверьте настройки системы.';
+        _setMessage(
+          'Не удалось настроить уведомления. Проверьте настройки системы.',
+        );
       }
-      _notify();
     });
     return _pending;
   }
 
-  void _notify() {
-    if (!_disposed) notifyListeners();
+  void _setSettings(RotationReminderSettings settings) {
+    emit((settings: settings, busy: state.busy, message: state.message));
+  }
+
+  void _setBusy(bool busy) {
+    if (!isClosed) {
+      emit((settings: state.settings, busy: busy, message: state.message));
+    }
+  }
+
+  void _setMessage(String? message) {
+    if (!isClosed) {
+      emit((settings: state.settings, busy: state.busy, message: message));
+    }
   }
 
   @override
-  void dispose() {
-    _disposed = true;
+  Future<void> close() {
     _notifications.dispose();
-    super.dispose();
+    return super.close();
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,6 +74,22 @@ WeaponCatalog parseWeaponCatalog(String page) {
       ?.attributes['datetime'];
   if (season == null || patch == null) throw const FormatException();
 
+  return _catalog(season, patch, _weaponEntries(document));
+}
+
+List<Object?> _weaponEntries(Document document) {
+  final text = _pagePayload(document);
+  const marker = '"weapons":[';
+  final index = text.indexOf(marker);
+  if (index == -1) throw const FormatException();
+  final Object? entries = jsonDecode(
+    _jsonArray(text, index + marker.length - 1),
+  );
+  if (entries is! List<Object?>) throw const FormatException();
+  return entries;
+}
+
+String _pagePayload(Document document) {
   // Страница передаёт список в JSON-строках. Сценарии сайта не исполняются.
   const prefix = 'self.__next_f.push([1,';
   final payload = StringBuffer();
@@ -84,15 +101,7 @@ WeaponCatalog parseWeaponCatalog(String page) {
     );
     if (chunk is String) payload.write(chunk);
   }
-  final text = payload.toString();
-  const marker = '"weapons":[';
-  final index = text.indexOf(marker);
-  if (index == -1) throw const FormatException();
-  final Object? entries = jsonDecode(
-    _jsonArray(text, index + marker.length - 1),
-  );
-  if (entries is! List<Object?>) throw const FormatException();
-  return _catalog(season, patch, entries);
+  return payload.toString();
 }
 
 WeaponCatalog _catalog(String season, String patch, List<Object?> entries) {
@@ -115,24 +124,26 @@ WeaponCatalog _catalog(String season, String patch, List<Object?> entries) {
 
 String _jsonArray(String text, int start) {
   var depth = 0;
-  var quoted = false;
   for (var index = start; index < text.length; index++) {
-    final char = text.codeUnitAt(index);
-    if (quoted) {
-      if (char == 92) {
-        index++;
-      } else if (char == 34) {
-        quoted = false;
-      }
-      continue;
-    }
-    switch (char) {
-      case 34:
-        quoted = true;
-      case 91:
+    switch (text[index]) {
+      case '"':
+        index = _endOfString(text, index + 1);
+      case '[':
         depth++;
-      case 93:
+      case ']':
         if (--depth == 0) return text.substring(start, index + 1);
+    }
+  }
+  throw const FormatException();
+}
+
+int _endOfString(String text, int start) {
+  for (var index = start; index < text.length; index++) {
+    switch (text[index]) {
+      case '"':
+        return index;
+      case r'\':
+        index++;
     }
   }
   throw const FormatException();

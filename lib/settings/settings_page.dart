@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pub_semver/pub_semver.dart';
@@ -8,28 +11,18 @@ import '../design/apeh_design.dart';
 import '../l10n/localization.dart';
 import '../updates/windows_release.dart';
 import '../updates/windows_update_button.dart';
+import 'appearance_cubit.dart';
 import 'appearance_settings.dart';
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({
-    super.key,
-    required this.appearance,
-    required this.ready,
-    required this.onLanguage,
-    required this.onTheme,
-    required this.onScale,
-    required this.client,
-  });
+  const SettingsPage({super.key, required this.client});
 
-  final AppearanceSettings appearance;
-  final bool ready;
-  final Future<bool> Function(AppLanguage) onLanguage;
-  final Future<bool> Function(ThemeMode) onTheme;
-  final Future<bool> Function(int) onScale;
   final http.Client client;
 
   @override
   Widget build(BuildContext context) {
+    final (:settings, :ready) = context.watch<AppearanceCubit>().state;
+    final cubit = context.read<AppearanceCubit>();
     final strings = context.strings;
     return ApehPage(
       title: strings.settings,
@@ -48,7 +41,7 @@ class SettingsPage extends StatelessWidget {
                 if (!ready) const LinearProgressIndicator(),
                 ApehSelect<AppLanguage>(
                   label: strings.language,
-                  value: appearance.language,
+                  value: settings.language,
                   items: AppLanguage.values,
                   labelFor: (value) => switch (value) {
                     AppLanguage.automatic => strings.automatic,
@@ -56,12 +49,12 @@ class SettingsPage extends StatelessWidget {
                     AppLanguage.english => strings.english,
                   },
                   onChanged: ready
-                      ? (value) => _save(context, onLanguage(value))
+                      ? (value) => _save(context, cubit.setLanguage(value))
                       : null,
                 ),
                 ApehSelect<ThemeMode>(
                   label: strings.theme,
-                  value: appearance.theme,
+                  value: settings.theme,
                   items: ThemeMode.values,
                   labelFor: (value) => switch (value) {
                     ThemeMode.system => strings.automatic,
@@ -69,16 +62,16 @@ class SettingsPage extends StatelessWidget {
                     ThemeMode.dark => strings.darkTheme,
                   },
                   onChanged: ready
-                      ? (value) => _save(context, onTheme(value))
+                      ? (value) => _save(context, cubit.setTheme(value))
                       : null,
                 ),
                 ApehSelect<int>(
                   label: strings.scale,
-                  value: appearance.scale,
+                  value: settings.scale,
                   items: AppearanceSettings.scales,
                   labelFor: (value) => '$value %',
                   onChanged: ready
-                      ? (value) => _save(context, onScale(value))
+                      ? (value) => _save(context, cubit.setScale(value))
                       : null,
                 ),
               ],
@@ -99,111 +92,136 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class _UpdatesPanel extends StatefulWidget {
+enum _VersionCheck { idle, checking, complete, failed }
+
+typedef _Versions = ({String? installed, Version? latest, _VersionCheck check});
+
+class _VersionsCubit extends Cubit<_Versions> {
+  _VersionsCubit(this._client)
+    : super((installed: null, latest: null, check: _VersionCheck.idle)) {
+    unawaited(_readInstalledVersion());
+  }
+
+  final http.Client _client;
+
+  Future<void> _readInstalledVersion() async {
+    try {
+      final version = releaseBuildVersion.isNotEmpty
+          ? releaseBuildVersion
+          : (await PackageInfo.fromPlatform()).version;
+      if (!isClosed && version.isNotEmpty) {
+        emit((installed: version, latest: state.latest, check: state.check));
+      }
+    } on Exception {
+      // Версию по-прежнему можно проверить на GitHub.
+    }
+  }
+
+  Future<void> check() async {
+    if (isClosed || state.check == _VersionCheck.checking) return;
+    _show(_VersionCheck.checking);
+    try {
+      final version = await checkPublishedVersion(_client);
+      _show(_VersionCheck.complete, latest: version);
+    } on Exception {
+      _show(_VersionCheck.failed);
+    }
+  }
+
+  void _show(_VersionCheck check, {Version? latest}) {
+    if (!isClosed) {
+      emit((installed: state.installed, latest: latest, check: check));
+    }
+  }
+}
+
+class _UpdatesPanel extends StatelessWidget {
   const _UpdatesPanel({required this.client});
 
   final http.Client client;
 
   @override
-  State<_UpdatesPanel> createState() => _UpdatesPanelState();
-}
+  Widget build(BuildContext context) => BlocProvider(
+    create: (_) => _VersionsCubit(client),
+    child: BlocBuilder<_VersionsCubit, _Versions>(builder: _panel),
+  );
 
-class _UpdatesPanelState extends State<_UpdatesPanel> {
-  late final _installed = _readInstalledVersion();
-  Future<Version?>? _published;
-
-  Future<String?> _readInstalledVersion() async {
-    if (releaseBuildVersion.isNotEmpty) return releaseBuildVersion;
-    try {
-      final version = (await PackageInfo.fromPlatform()).version;
-      return version.isEmpty ? null : version;
-    } on Exception {
-      return null;
-    }
+  Widget _panel(BuildContext context, _Versions state) {
+    final strings = context.strings;
+    return ApehPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 10,
+        children: [
+          Text(strings.updates, style: Theme.of(context).textTheme.titleLarge),
+          Text(strings.installedVersion(state.installed ?? '—'), style: mono),
+          ..._result(context, state),
+          OutlinedButton.icon(
+            onPressed: state.check == _VersionCheck.checking
+                ? null
+                : context.read<_VersionsCubit>().check,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: Text(strings.checkUpdates),
+          ),
+        ],
+      ),
+    );
   }
 
-  bool _isNewer(Version latest, String? installed) {
+  List<Widget> _result(BuildContext context, _Versions state) =>
+      switch (state.check) {
+        _VersionCheck.idle => const [],
+        _VersionCheck.checking => [Text(context.strings.checkingUpdates)],
+        _VersionCheck.failed => [Text(context.strings.checkUpdatesFailed)],
+        _VersionCheck.complete => _publishedVersion(context, state),
+      };
+
+  List<Widget> _publishedVersion(BuildContext context, _Versions state) {
+    final strings = context.strings;
+    final latest = state.latest;
+    final current = state.installed;
+    final updateAvailable =
+        latest != null && (current == null || _isNewer(latest, current));
+    return [
+      if (latest != null)
+        Text(strings.latestVersion(latest.toString()), style: mono),
+      if (current != null && !updateAvailable) Text(strings.noUpdates),
+      if (updateAvailable) _releaseActions(context, latest, current),
+    ];
+  }
+
+  bool _isNewer(Version latest, String installed) {
     try {
-      return installed != null && latest > Version.parse(installed);
+      return latest > Version.parse(installed);
     } on FormatException {
       return false;
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final strings = context.strings;
-    return ApehPanel(
-      child: FutureBuilder<String?>(
-        future: _installed,
-        builder: (context, installed) => FutureBuilder<Version?>(
-          future: _published,
-          builder: (context, published) {
-            final latest = published.data;
-            final checking =
-                published.connectionState == ConnectionState.waiting;
-            final current = installed.data;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 10,
-              children: [
-                Text(
-                  strings.updates,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                Text(strings.installedVersion(current ?? '—'), style: mono),
-                if (checking)
-                  Text(strings.checkingUpdates)
-                else if (published.hasError)
-                  Text(strings.checkUpdatesFailed)
-                else if (_published != null) ...[
-                  if (latest != null)
-                    Text(strings.latestVersion(latest.toString()), style: mono),
-                  if (current != null &&
-                      (latest == null || !_isNewer(latest, current)))
-                    Text(strings.noUpdates),
-                  if (latest != null &&
-                      (current == null || _isNewer(latest, current)))
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        if (current != null)
-                          WindowsUpdateButton(
-                            client: widget.client,
-                            version: current,
-                            label: strings.downloadInstall,
-                          ),
-                        Link(
-                          uri: Uri.https(
-                            'github.com',
-                            '/Hecatoncheir/Apeh/releases/tag/v$latest',
-                          ),
-                          target: LinkTarget.blank,
-                          builder: (_, follow) => TextButton(
-                            onPressed: follow,
-                            child: Text(strings.releasePage),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-                OutlinedButton.icon(
-                  onPressed: checking
-                      ? null
-                      : () {
-                          final check = checkPublishedVersion(widget.client);
-                          setState(() {
-                            _published = check;
-                          });
-                        },
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: Text(strings.checkUpdates),
-                ),
-              ],
-            );
-          },
+  Widget _releaseActions(
+    BuildContext context,
+    Version latest,
+    String? current,
+  ) => Wrap(
+    spacing: 8,
+    children: [
+      if (current != null)
+        WindowsUpdateButton(
+          client: client,
+          version: current,
+          label: context.strings.downloadInstall,
+        ),
+      Link(
+        uri: Uri.https(
+          'github.com',
+          '/Hecatoncheir/Apeh/releases/tag/v$latest',
+        ),
+        target: LinkTarget.blank,
+        builder: (context, follow) => TextButton(
+          onPressed: follow,
+          child: Text(context.strings.releasePage),
         ),
       ),
-    );
-  }
+    ],
+  );
 }

@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/link.dart';
 
 import '../l10n/localization.dart';
 import '../design/apeh_design.dart';
 import 'build_guides.dart';
-import 'builds_view_model.dart';
+import 'builds_cubit.dart';
 import 'upgrade_repository.dart';
 
 class BuildsPage extends StatelessWidget {
-  const BuildsPage({super.key, required this.model, required this.onCompare});
-
-  final BuildsViewModel model;
+  const BuildsPage({super.key, required this.onCompare});
   final ValueChanged<WeaponPair> onCompare;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: model,
-    builder: (context, _) => ApehPage(
+  Widget build(BuildContext context) => BlocBuilder<BuildsCubit, BuildsState>(
+    builder: (context, state) => ApehPage(
       title: context.strings.brBuilds,
       description: context.strings.buildDescription,
       children: [
-        _EditionUpdate(model: model),
+        _EditionUpdate(state: state),
         const SizedBox(height: 14),
         ApehColumns(
-          first: _WeaponPairs(model: model, onCompare: onCompare),
-          second: _LegendBuilds(model: model),
+          first: _WeaponPairs(state: state, onCompare: onCompare),
+          second: _LegendBuilds(state: state),
         ),
       ],
     ),
@@ -32,14 +30,14 @@ class BuildsPage extends StatelessWidget {
 }
 
 class _EditionUpdate extends StatelessWidget {
-  const _EditionUpdate({required this.model});
+  const _EditionUpdate({required this.state});
 
-  final BuildsViewModel model;
+  final BuildsState state;
 
   @override
   Widget build(BuildContext context) {
-    final edition = model.edition;
-    final status = model.guideStatus;
+    final edition = state.edition;
+    final status = state.guideStatus;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -54,7 +52,7 @@ class _EditionUpdate extends StatelessWidget {
             TextButton.icon(
               onPressed: status == GuideUpdateStatus.checking
                   ? null
-                  : model.refreshGuides,
+                  : context.read<BuildsCubit>().refreshGuides,
               icon: const Icon(Icons.sync),
               label: Text(context.strings.checkUpdates),
             ),
@@ -76,9 +74,9 @@ class _EditionUpdate extends StatelessWidget {
 }
 
 class _WeaponPairs extends StatelessWidget {
-  const _WeaponPairs({required this.model, required this.onCompare});
+  const _WeaponPairs({required this.state, required this.onCompare});
 
-  final BuildsViewModel model;
+  final BuildsState state;
   final ValueChanged<WeaponPair> onCompare;
 
   @override
@@ -92,16 +90,16 @@ class _WeaponPairs extends StatelessWidget {
           const SizedBox(height: 12),
           ApehSelect<BuildRange>(
             label: context.strings.distance,
-            value: model.range,
+            value: state.range,
             items: BuildRange.values,
             labelFor: (range) => switch (range) {
               BuildRange.close => context.strings.closeRange,
               BuildRange.medium => context.strings.mediumRange,
               BuildRange.long => context.strings.longRange,
             },
-            onChanged: model.selectRange,
+            onChanged: context.read<BuildsCubit>().selectRange,
           ),
-          for (final pair in model.pairs)
+          for (final pair in state.pairs)
             Container(
               margin: const EdgeInsets.only(top: 10),
               padding: const EdgeInsets.fromLTRB(11, 10, 11, 4),
@@ -150,9 +148,9 @@ class _PanelTitle extends StatelessWidget {
 }
 
 class _LegendBuilds extends StatefulWidget {
-  const _LegendBuilds({required this.model});
+  const _LegendBuilds({required this.state});
 
-  final BuildsViewModel model;
+  final BuildsState state;
 
   @override
   State<_LegendBuilds> createState() => _LegendBuildsState();
@@ -163,13 +161,13 @@ class _LegendBuildsState extends State<_LegendBuilds> {
 
   @override
   Widget build(BuildContext context) {
-    final model = widget.model;
-    final guide = model.guide;
-    final catalog = model.catalog;
+    final state = widget.state;
+    final guide = state.guide;
+    final catalog = state.source.data;
     final differs =
         catalog != null &&
         guide != null &&
-        !model.cached &&
+        !state.source.cached &&
         !catalog.matches(guide);
     return ApehPanel(
       child: Column(
@@ -183,29 +181,31 @@ class _LegendBuildsState extends State<_LegendBuilds> {
               Expanded(
                 child: ApehSelect<BuildLegend>(
                   label: context.strings.legend,
-                  value: model.legend,
-                  items: model.legends,
+                  value: state.legend,
+                  items: state.legends,
                   labelFor: (legend) => legend.name,
                   onChanged: (legend) {
                     setState(() => _alternative = false);
-                    model.selectLegend(legend);
+                    context.read<BuildsCubit>().selectLegend(legend);
                   },
                 ),
               ),
-              if (model.online)
+              if (state.online)
                 IconButton(
                   tooltip: context.strings.refreshGuide,
-                  onPressed: model.loading ? null : model.refresh,
+                  onPressed: state.source.loading
+                      ? null
+                      : context.read<BuildsCubit>().refresh,
                   icon: const Icon(Icons.refresh),
                 ),
             ],
           ),
-          if (model.loading) const LinearProgressIndicator(),
-          if (model.failed)
+          if (state.source.loading) const LinearProgressIndicator(),
+          if (state.source.failed)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                model.cached
+                state.source.cached
                     ? context.strings.guideCache
                     : context.strings.upgradeLoadError,
               ),
@@ -245,7 +245,7 @@ class _LegendBuildsState extends State<_LegendBuilds> {
           Align(
             alignment: Alignment.centerLeft,
             child: Link(
-              uri: upgradeSource(model.legend),
+              uri: upgradeSource(state.legend),
               target: LinkTarget.blank,
               builder: (context, follow) => TextButton(
                 onPressed: follow,

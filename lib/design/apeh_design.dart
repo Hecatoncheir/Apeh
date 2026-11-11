@@ -203,49 +203,45 @@ class ApehPage extends StatelessWidget {
   final Widget? body;
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 680;
-        final padding = EdgeInsets.fromLTRB(
-          compact ? 14 : 32,
-          18,
-          compact ? 14 : 32,
-          24,
-        );
-        final content = [
-          _header(context, compact),
-          const SizedBox(height: 16),
-          ...children,
-        ];
-        final pane = body;
-        final minimumHeight = compact ? 660.0 : 450.0;
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1280),
-            child: pane != null && constraints.maxHeight >= minimumHeight
-                ? Padding(
-                    padding: padding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ...content,
-                        Expanded(child: pane),
-                      ],
-                    ),
-                  )
-                : ListView(
-                    primary: false,
-                    padding: padding,
-                    children: [
-                      ...content,
-                      if (pane != null)
-                        SizedBox(height: compact ? 475 : 315, child: pane),
-                    ],
-                  ),
-          ),
-        );
-      },
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1280),
+        child: _layout(context, constraints),
+      ),
+    ),
+  );
+
+  Widget _layout(BuildContext context, BoxConstraints constraints) {
+    final compact = constraints.maxWidth < 680;
+    final horizontal = compact ? 14.0 : 32.0;
+    final padding = EdgeInsets.fromLTRB(horizontal, 18, horizontal, 24);
+    final content = [
+      _header(context, compact),
+      const SizedBox(height: 16),
+      ...children,
+    ];
+    final pane = body;
+    final minimumHeight = compact ? 660.0 : 450.0;
+    if (pane != null && constraints.maxHeight >= minimumHeight) {
+      return Padding(
+        padding: padding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ...content,
+            Expanded(child: pane),
+          ],
+        ),
+      );
+    }
+    return ListView(
+      primary: false,
+      padding: padding,
+      children: [
+        ...content,
+        if (pane != null) SizedBox(height: compact ? 475 : 315, child: pane),
+      ],
     );
   }
 

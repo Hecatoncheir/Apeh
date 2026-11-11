@@ -1,51 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../l10n/localization.dart';
 import '../design/apeh_design.dart';
 import 'weapon.dart';
-import 'weapons_view_model.dart';
+import 'weapons_cubit.dart';
 
 class WeaponsPage extends StatelessWidget {
-  const WeaponsPage({super.key, required this.model});
-
-  final WeaponsViewModel model;
+  const WeaponsPage({super.key});
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: model,
-    builder: (context, _) => _content(context),
-  );
+  Widget build(BuildContext context) =>
+      BlocBuilder<WeaponsCubit, WeaponsState>(builder: _content);
 
-  Widget _content(BuildContext context) {
-    final catalog = model.catalog;
+  Widget _content(BuildContext context, WeaponsState state) {
+    final catalog = state.source.data;
     return ApehPage(
       title: context.strings.weapons,
       description: context.strings.weaponDescription,
       actions: [
         IconButton(
           tooltip: context.strings.refreshWeapons,
-          onPressed: model.loading ? null : model.refresh,
+          onPressed: state.source.loading
+              ? null
+              : context.read<WeaponsCubit>().refresh,
           icon: const Icon(Icons.refresh),
         ),
       ],
       children: [
-        if (model.loading) const LinearProgressIndicator(),
-        if (model.failed)
+        if (state.source.loading) const LinearProgressIndicator(),
+        if (state.source.failed)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(context.strings.weaponsLoadError),
           ),
         if (catalog != null) ...[
-          if (model.selectionUnavailable)
+          if (state.selectionUnavailable)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Text(context.strings.weaponUnavailable),
             ),
-          _WeaponControls(model: model, weapons: catalog.weapons),
+          _WeaponControls(state: state, weapons: catalog.weapons),
           const SizedBox(height: 14),
           ApehColumns(
-            first: _Comparison(model: model),
-            second: _KillTime(model: model),
+            first: _Comparison(state: state),
+            second: _KillTime(state: state),
             firstFlex: 6,
             secondFlex: 5,
           ),
@@ -55,7 +54,7 @@ class WeaponsPage extends StatelessWidget {
               'Apex Weapon Stats',
               catalog.season,
               _date(catalog.patch),
-              if (model.cached) context.strings.cachedCopy,
+              if (state.source.cached) context.strings.cachedCopy,
             ].join(' · '),
             style: TextStyle(color: context.colors.onSurfaceVariant),
           ),
@@ -66,9 +65,9 @@ class WeaponsPage extends StatelessWidget {
 }
 
 class _WeaponControls extends StatelessWidget {
-  const _WeaponControls({required this.model, required this.weapons});
+  const _WeaponControls({required this.state, required this.weapons});
 
-  final WeaponsViewModel model;
+  final WeaponsState state;
   final List<Weapon> weapons;
 
   @override
@@ -90,28 +89,29 @@ class _WeaponControls extends StatelessWidget {
                   label: left
                       ? context.strings.firstWeapon
                       : context.strings.secondWeapon,
-                  value: model.selected(left: left),
+                  value: state.selected(left: left),
                   items: weapons,
                   labelFor: (weapon) => weapon.name,
-                  onChanged: (weapon) =>
-                      model.selectWeapon(weapon.id, left: left),
+                  onChanged: (weapon) => context
+                      .read<WeaponsCubit>()
+                      .selectWeapon(weapon.id, left: left),
                 ),
               ),
             SizedBox(
               width: width,
               child: ApehSelect<Armor>(
                 label: context.strings.targetArmor,
-                value: model.armor,
+                value: state.armor,
                 items: Armor.values,
                 labelFor: (armor) =>
                     '${_armorLabel(context, armor)} · ${armor.total} HP',
-                onChanged: model.selectArmor,
+                onChanged: context.read<WeaponsCubit>().selectArmor,
               ),
             ),
             FilterChip(
               label: Text(context.strings.extendedMagazine),
-              selected: model.extended,
-              onSelected: model.selectMagazine,
+              selected: state.extended,
+              onSelected: context.read<WeaponsCubit>().selectMagazine,
             ),
           ],
         );
@@ -121,14 +121,14 @@ class _WeaponControls extends StatelessWidget {
 }
 
 class _Comparison extends StatelessWidget {
-  const _Comparison({required this.model});
+  const _Comparison({required this.state});
 
-  final WeaponsViewModel model;
+  final WeaponsState state;
 
   @override
   Widget build(BuildContext context) {
-    final left = model.selected(left: true);
-    final right = model.selected(left: false);
+    final left = state.selected(left: true);
+    final right = state.selected(left: false);
     final stats = [
       (
         context.strings.weaponType,
@@ -190,7 +190,7 @@ class _Comparison extends StatelessWidget {
   }
 
   String _magazineLabel(BuildContext context, Weapon weapon) {
-    final magazine = model.extended
+    final magazine = state.extended
         ? weapon.extendedMagazine ?? weapon.baseMagazine
         : weapon.baseMagazine;
     return magazine == 0 ? context.strings.noMagazine : '$magazine';
@@ -246,9 +246,9 @@ class _ComparisonRow extends StatelessWidget {
 }
 
 class _KillTime extends StatelessWidget {
-  const _KillTime({required this.model});
+  const _KillTime({required this.state});
 
-  final WeaponsViewModel model;
+  final WeaponsState state;
 
   @override
   Widget build(BuildContext context) {
@@ -262,12 +262,12 @@ class _KillTime extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            context.strings.bodyHits('${model.armor.total}'),
+            context.strings.bodyHits('${state.armor.total}'),
             style: TextStyle(color: context.colors.onSurfaceVariant),
           ),
           const SizedBox(height: 10),
           for (final left in [true, false])
-            _estimate(context, model.selected(left: left)),
+            _estimate(context, state.selected(left: left)),
           const SizedBox(height: 4),
           Text(
             context.strings.ttkHelp,
@@ -282,7 +282,7 @@ class _KillTime extends StatelessWidget {
   }
 
   Widget _estimate(BuildContext context, Weapon weapon) {
-    final estimate = weapon.estimate(model.armor, extended: model.extended);
+    final estimate = weapon.estimate(state.armor, extended: state.extended);
     final seconds = estimate.seconds;
     final rounds = estimate.shots * weapon.ammoPerShot;
     return Container(

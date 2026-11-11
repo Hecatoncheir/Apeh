@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -119,34 +120,40 @@ class LegendRepository {
 final _percentText = RegExp(r'^([0-9]+(?:[.,][0-9]+)?)\s*%$');
 
 List<LegendPick> parsePicks(String body, Uri uri) {
+  final cards = html.parse(body).querySelectorAll('.legends-banner__item');
   final picks = <String, LegendPick>{};
-  final document = html.parse(body);
-  for (final card in document.querySelectorAll('.legends-banner__item')) {
-    final image = card.querySelector('img.legends-banner__image');
-    final name = image?.attributes['alt']?.trim() ?? '';
-    final content = card.querySelector('.legends-banner__content');
-    if (name.isEmpty || content == null) continue;
-    // Первое процентное значение — доля выбора. Следующее показывает изменение.
-    final rate = _percentText.firstMatch(
-      content.querySelector('span')?.text.trim() ?? '',
-    );
-    final percent = _percentage(rate?.group(1)?.replaceAll(',', '.'));
-    if (percent == null) continue;
-    final url =
-        card.querySelector('source[type="image/webp"]')?.attributes['srcset'] ??
-        image?.attributes['src'];
-    final reference = url == null ? null : Uri.tryParse(url);
-    final portrait = reference == null ? null : uri.resolveUri(reference);
-    picks[name] = LegendPick(
-      name,
-      percent,
-      portrait?.scheme == 'https' && portrait?.host == uri.host
-          ? portrait
-          : null,
-    );
+  for (final card in cards) {
+    if (_parsePick(card, uri) case final pick?) picks[pick.name] = pick;
   }
   if (picks.isEmpty) throw const FormatException('Нет долей выбора.');
   return picks.values.toList()..sort((a, b) => b.percent.compareTo(a.percent));
+}
+
+LegendPick? _parsePick(Element card, Uri uri) {
+  final image = card.querySelector('img.legends-banner__image');
+  final name = image?.attributes['alt']?.trim() ?? '';
+  final content = card.querySelector('.legends-banner__content');
+  if (name.isEmpty || content == null) return null;
+  // Первое процентное значение — доля выбора. Следующее показывает изменение.
+  final rate = _percentText.firstMatch(
+    content.querySelector('span')?.text.trim() ?? '',
+  );
+  final percent = _percentage(rate?.group(1)?.replaceAll(',', '.'));
+  if (percent == null) return null;
+  final url =
+      card.querySelector('source[type="image/webp"]')?.attributes['srcset'] ??
+      image?.attributes['src'];
+  return LegendPick(name, percent, _portrait(uri, url));
+}
+
+Uri? _portrait(Uri uri, String? url) {
+  if (url == null) return null;
+  final reference = Uri.tryParse(url);
+  if (reference == null) return null;
+  final portrait = uri.resolveUri(reference);
+  return portrait.scheme == 'https' && portrait.host == uri.host
+      ? portrait
+      : null;
 }
 
 Map<String, List<PickPoint>> parsePickHistory(String body) {
@@ -160,33 +167,43 @@ Map<String, List<PickPoint>> parsePickHistory(String body) {
       })
         name: values,
   };
-  final dates = series.remove('Date');
-  if (dates == null || dates.isEmpty) throw const FormatException();
-  final recentDates = <int, DateTime>{};
-  final seenDays = <DateTime>{};
-  final last = _day(dates.last);
-  if (last == null) throw const FormatException();
-  final first = last.subtract(const Duration(days: 29));
-  for (var index = dates.length - 1; index >= 0; index--) {
-    final day = _day(dates[index]);
-    if (day == null) continue;
-    if (day.isBefore(first)) break;
-    if (seenDays.add(day)) recentDates[index] = day;
-  }
-  final indices = recentDates.keys.toList().reversed;
+  final dates = _recentDates(series.remove('Date'));
   final history = <String, List<PickPoint>>{
     for (final MapEntry(:key, :value) in series.entries)
-      key: List.unmodifiable([
-        for (final index in indices)
-          if (index < value.length)
-            if (_percentage(value[index]) case final percent?)
-              PickPoint(recentDates[index]!, percent),
-      ]),
+      key: List.unmodifiable(_points(value, dates)),
   };
   if (!history.values.any((points) => points.isNotEmpty)) {
     throw const FormatException();
   }
   return history;
+}
+
+List<MapEntry<int, DateTime>> _recentDates(List<Object?>? dates) {
+  if (dates == null || dates.isEmpty) throw const FormatException();
+  final last = _day(dates.last);
+  if (last == null) throw const FormatException();
+  final first = last.subtract(const Duration(days: 29));
+  final entries = <MapEntry<int, DateTime>>[];
+  final seenDays = <DateTime>{};
+  for (var index = dates.length - 1; index >= 0; index--) {
+    final day = _day(dates[index]);
+    if (day == null) continue;
+    if (day.isBefore(first)) break;
+    if (seenDays.add(day)) entries.add(MapEntry(index, day));
+  }
+  return entries.reversed.toList();
+}
+
+Iterable<PickPoint> _points(
+  List<Object?> values,
+  List<MapEntry<int, DateTime>> dates,
+) sync* {
+  for (final MapEntry(key: index, value: day) in dates) {
+    if (index >= values.length) continue;
+    if (_percentage(values[index]) case final percent?) {
+      yield PickPoint(day, percent);
+    }
+  }
 }
 
 DateTime? _day(Object? value) =>

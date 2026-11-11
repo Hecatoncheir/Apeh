@@ -1,35 +1,31 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../l10n/localization.dart';
 import '../design/apeh_design.dart';
 import 'legend_board.dart';
-import 'legends_view_model.dart';
+import 'legends_cubit.dart';
 
 class LegendsPage extends StatelessWidget {
-  const LegendsPage({super.key, required this.model});
-
-  final LegendsViewModel? model;
+  const LegendsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final data = model;
-    if (data == null) {
+    if (kIsWeb) {
       return ApehPage(
         title: context.strings.legends,
         description: context.strings.legendDescription,
         children: [ApehPanel(child: Text(context.strings.nativeLegends))],
       );
     }
-    return ListenableBuilder(
-      listenable: data,
-      builder: (context, _) => _content(context, data),
-    );
+    return BlocBuilder<LegendsCubit, LegendsState>(builder: _content);
   }
 
-  Widget _content(BuildContext context, LegendsViewModel model) {
-    final board = model.board;
+  Widget _content(BuildContext context, LegendsState state) {
+    final board = state.source.data;
     return ApehPage(
       title: context.strings.legends,
       description: context.strings.legendDescription,
@@ -38,7 +34,7 @@ class LegendsPage extends StatelessWidget {
           width: 190,
           child: ApehSelect<LegendRank>(
             label: context.strings.rank,
-            value: model.rank,
+            value: state.rank,
             items: LegendRank.values,
             labelFor: (rank) => switch (rank) {
               LegendRank.all => context.strings.allPlayers,
@@ -50,28 +46,30 @@ class LegendsPage extends StatelessWidget {
               LegendRank.diamond => context.strings.diamond,
               LegendRank.masterPred => context.strings.masterPredator,
             },
-            onChanged: model.selectRank,
+            onChanged: context.read<LegendsCubit>().selectRank,
           ),
         ),
         IconButton(
           tooltip: context.strings.refreshLegends,
-          onPressed: model.loading ? null : model.refresh,
+          onPressed: state.source.loading
+              ? null
+              : context.read<LegendsCubit>().refresh,
           icon: const Icon(Icons.refresh),
         ),
       ],
       body: board == null
           ? null
-          : _LegendBoardLayout(board: board, model: model),
+          : _LegendBoardLayout(board: board, state: state),
       children: [
-        if (model.loading) const LinearProgressIndicator(),
-        if (model.failed)
+        if (state.source.loading) const LinearProgressIndicator(),
+        if (state.source.failed)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(context.strings.legendLoadError),
           ),
         if (board != null) ...[
           Text(
-            'Apex Legends Status · ${model.fromCache ? context.strings.saved : context.strings.fetched} '
+            'Apex Legends Status · ${state.source.cached ? context.strings.saved : context.strings.fetched} '
             '${_date(board.fetchedAt.toLocal())}, '
             '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(board.fetchedAt.toLocal()), alwaysUse24HourFormat: true)}'
             ' · ${context.strings.allModes}',
@@ -85,17 +83,17 @@ class LegendsPage extends StatelessWidget {
 }
 
 class _LegendBoardLayout extends StatelessWidget {
-  const _LegendBoardLayout({required this.board, required this.model});
+  const _LegendBoardLayout({required this.board, required this.state});
 
   final LegendBoard board;
-  final LegendsViewModel model;
+  final LegendsState state;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final wide = constraints.maxWidth >= 680;
-      final chart = _TrendPanel(board: board, model: model, compact: !wide);
-      final grid = _PickList(board: board, model: model);
+      final chart = _TrendPanel(board: board, state: state, compact: !wide);
+      final grid = _PickList(board: board, state: state);
       if (!wide) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -130,10 +128,10 @@ class _LegendBoardLayout extends StatelessWidget {
 }
 
 class _PickList extends StatefulWidget {
-  const _PickList({required this.board, required this.model});
+  const _PickList({required this.board, required this.state});
 
   final LegendBoard board;
-  final LegendsViewModel model;
+  final LegendsState state;
 
   @override
   State<_PickList> createState() => _PickListState();
@@ -208,8 +206,10 @@ class _PickListState extends State<_PickList> {
                             child: _LegendTile(
                               pick: pick,
                               selected:
-                                  widget.model.selection?.name == pick.name,
-                              onTap: () => widget.model.selectLegend(pick.name),
+                                  widget.state.selection?.name == pick.name,
+                              onTap: () => context
+                                  .read<LegendsCubit>()
+                                  .selectLegend(pick.name),
                             ),
                           ),
                       ],
@@ -317,17 +317,17 @@ class _Portrait extends StatelessWidget {
 class _TrendPanel extends StatelessWidget {
   const _TrendPanel({
     required this.board,
-    required this.model,
+    required this.state,
     required this.compact,
   });
 
   final LegendBoard board;
-  final LegendsViewModel model;
+  final LegendsState state;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final selected = model.selection;
+    final selected = state.selection;
     final points = board.history[selected?.name] ?? const <PickPoint>[];
     return ApehPanel(
       child: Column(
@@ -347,7 +347,7 @@ class _TrendPanel extends StatelessWidget {
               label: context.strings.legend,
               value: selected?.name,
               items: board.picks.map((pick) => pick.name),
-              onChanged: model.selectLegend,
+              onChanged: context.read<LegendsCubit>().selectLegend,
             ),
           ],
           SizedBox(height: compact ? 8 : 14),

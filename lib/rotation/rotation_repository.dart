@@ -102,33 +102,46 @@ RotationSnapshot parseRotation(
   Map<String, Object?> payload,
   DateTime updatedAt,
 ) {
-  final playlists = <Playlist, PlaylistRotation>{};
-  for (final mode in Playlist.values) {
-    final keys = switch (mode) {
-      Playlist.ranked => ['ranked', 'br_ranked'],
-      Playlist.battleRoyale => ['battle_royale', 'pubs'],
-      Playlist.mixtape => ['mixtape', 'ltm'],
-      Playlist.wildcard => ['wildcard', 'freestyle'],
-    };
-    for (final key in keys) {
-      final section = payload[key];
-      if (section is! Map<String, Object?>) continue;
-      final current = _slot(section['current']);
-      final next = _slot(section['next']);
-      if (current == null && next == null) continue;
-      if (key == 'ltm' && !_isMixtape(current) && !_isMixtape(next)) continue;
-      final later = section['later'];
-      playlists[mode] = PlaylistRotation(
-        current: current,
-        next: next,
-        later: later is List<Object?>
-            ? List.unmodifiable(later.map(_slot).nonNulls)
-            : const [],
-      );
-      break;
+  return RotationSnapshot(
+    updatedAt: updatedAt,
+    playlists: {
+      for (final mode in Playlist.values) mode: ?_findRotation(mode, payload),
+    },
+  );
+}
+
+PlaylistRotation? _findRotation(Playlist mode, Map<String, Object?> payload) {
+  final keys = switch (mode) {
+    Playlist.ranked => ['ranked', 'br_ranked'],
+    Playlist.battleRoyale => ['battle_royale', 'pubs'],
+    Playlist.mixtape => ['mixtape', 'ltm'],
+    Playlist.wildcard => ['wildcard', 'freestyle'],
+  };
+  for (final key in keys) {
+    final rotation = _parseSection(payload[key]);
+    if (rotation == null) continue;
+    if (key != 'ltm' ||
+        _isMixtape(rotation.current) ||
+        _isMixtape(rotation.next)) {
+      return rotation;
     }
   }
-  return RotationSnapshot(updatedAt: updatedAt, playlists: playlists);
+  return null;
+}
+
+PlaylistRotation? _parseSection(Object? section) {
+  if (section is! Map<String, Object?>) return null;
+  final current = _slot(section['current']);
+  final next = _slot(section['next']);
+  if (current == null && next == null) return null;
+  final later = section['later'];
+  return PlaylistRotation(
+    current: current,
+    next: next,
+    later: later is List<Object?>
+        ? List.unmodifiable(later.map(_slot).nonNulls)
+        : const [],
+  );
 }
 
 MapSlot? _slot(Object? value) {

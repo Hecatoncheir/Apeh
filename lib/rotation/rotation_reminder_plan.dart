@@ -37,41 +37,63 @@ List<MapReminder> planMapReminders(
   for (final mode in settings.playlists) {
     final rotation = snapshot?.playlists[mode];
     if (rotation == null) continue;
-    for (final slot in rotation.slots) {
-      final changeAt = slot.start.toUtc();
-      final fireAt = changeAt.subtract(Duration(minutes: settings.minutes));
-      if (!fireAt.isAfter(now)) continue;
-      final previous = rotation.activeAt(
-        changeAt.subtract(const Duration(milliseconds: 1)),
-      );
-      if (previous != null &&
-          previous.name == slot.name &&
-          previous.variant == slot.variant) {
-        continue;
-      }
-      final seconds = changeAt.millisecondsSinceEpoch ~/ 1000;
-      final id = _firstId + ((seconds & _secondsMask) << 2) + mode.index;
-      final map = [slot.name, slot.variant].nonNulls.join(' · ');
-      reminders[id] = (
-        id: id,
-        fireAt: fireAt,
-        changeAt: changeAt,
-        title:
-            'Apeh · ${english && mode == Playlist.battleRoyale ? 'Regular BR' : mode.label}',
-        body: switch ((english, settings.minutes)) {
-          (true, 0) => 'The map is changing to $map.',
-          (true, final minutes) => 'Next map: $map in $minutes min.',
-          (false, 0) => 'Карта меняется на $map.',
-          (false, final minutes) =>
-            'Следующая карта $map. До смены $minutes мин.',
-        },
-      );
+    for (final reminder in _forMode(
+      mode,
+      rotation,
+      settings.minutes,
+      now,
+      english,
+    )) {
+      reminders[reminder.id] = reminder;
     }
   }
-  final ordered = reminders.values.toList()
-    ..sort((a, b) {
-      final byTime = a.fireAt.compareTo(b.fireAt);
-      return byTime == 0 ? a.id.compareTo(b.id) : byTime;
-    });
+  final ordered = reminders.values.toList()..sort(_byTime);
   return ordered.take(48).toList(growable: false);
 }
+
+Iterable<MapReminder> _forMode(
+  Playlist mode,
+  PlaylistRotation rotation,
+  int minutes,
+  DateTime now,
+  bool english,
+) sync* {
+  final lead = Duration(minutes: minutes);
+  final label = english && mode == Playlist.battleRoyale
+      ? 'Regular BR'
+      : mode.label;
+  for (final slot in rotation.slots) {
+    final changeAt = slot.start.toUtc();
+    final fireAt = changeAt.subtract(lead);
+    if (!fireAt.isAfter(now) || _repeatsCurrent(rotation, slot)) continue;
+    final seconds = changeAt.millisecondsSinceEpoch ~/ 1000;
+    final map = [slot.name, slot.variant].nonNulls.join(' · ');
+    yield (
+      id: _firstId + ((seconds & _secondsMask) << 2) + mode.index,
+      fireAt: fireAt,
+      changeAt: changeAt,
+      title: 'Apeh · $label',
+      body: _body(map, minutes, english),
+    );
+  }
+}
+
+bool _repeatsCurrent(PlaylistRotation rotation, MapSlot slot) {
+  final previous = rotation.activeAt(
+    slot.start.subtract(const Duration(milliseconds: 1)),
+  );
+  return previous?.name == slot.name && previous?.variant == slot.variant;
+}
+
+int _byTime(MapReminder first, MapReminder second) {
+  final time = first.fireAt.compareTo(second.fireAt);
+  return time == 0 ? first.id.compareTo(second.id) : time;
+}
+
+String _body(String map, int minutes, bool english) =>
+    switch ((english, minutes)) {
+      (true, 0) => 'The map is changing to $map.',
+      (true, _) => 'Next map: $map in $minutes min.',
+      (false, 0) => 'Карта меняется на $map.',
+      (false, _) => 'Следующая карта $map. До смены $minutes мин.',
+    };

@@ -48,6 +48,10 @@ class LocalRotationNotifications implements RotationNotifications {
   bool _disposed = false;
 
   bool get _linux => defaultTargetPlatform == TargetPlatform.linux;
+  AndroidFlutterLocalNotificationsPlugin? get _android => _plugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >();
 
   @override
   Future<String?> sync(
@@ -56,22 +60,11 @@ class LocalRotationNotifications implements RotationNotifications {
     required bool requestPermission,
   }) async {
     if (_disposed) return null;
-    if (!_initialized) {
-      _initialized = await _plugin.initialize(settings: _settings) == true;
-      if (!_initialized) throw StateError('Уведомления недоступны.');
-    }
+    await _initialize();
     final allowed = !enabled || await _permission(requestPermission);
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    if (enabled &&
-        allowed &&
-        requestPermission &&
-        await android?.canScheduleExactNotifications() == false) {
-      await android?.requestExactAlarmsPermission();
-    }
-    final exact = await android?.canScheduleExactNotifications() ?? true;
+    final exact = await _exactScheduling(
+      request: enabled && allowed && requestPermission,
+    );
     if (_disposed) return null;
     final desired = allowed ? plan : const <MapReminder>[];
     if (_linux) {
@@ -79,18 +72,34 @@ class LocalRotationNotifications implements RotationNotifications {
     } else {
       await _syncScheduled(desired, exact);
     }
+    return _warning(allowed: allowed, inexact: enabled && !exact);
+  }
+
+  Future<void> _initialize() async {
+    if (_initialized) return;
+    _initialized = await _plugin.initialize(settings: _settings) == true;
+    if (!_initialized) throw StateError('Уведомления недоступны.');
+  }
+
+  Future<bool> _exactScheduling({required bool request}) async {
+    final android = _android;
+    if (android == null) return true;
+    if (request && await android.canScheduleExactNotifications() == false) {
+      await android.requestExactAlarmsPermission();
+    }
+    return await android.canScheduleExactNotifications() ?? true;
+  }
+
+  String? _warning({required bool allowed, required bool inexact}) {
     if (!allowed) return 'Разрешите уведомления Apeh в настройках системы.';
-    if (enabled && !exact) {
+    if (inexact) {
       return 'Android может задерживать напоминания без разрешения на точные сигналы.';
     }
     return null;
   }
 
   Future<bool> _permission(bool request) async {
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final android = _android;
     if (android != null) {
       if (request) await android.requestNotificationsPermission();
       return await android.areNotificationsEnabled() ?? false;
@@ -100,26 +109,49 @@ class LocalRotationNotifications implements RotationNotifications {
           IOSFlutterLocalNotificationsPlugin
         >();
     if (ios != null) {
-      if (request) await ios.requestPermissions(alert: true, sound: true);
-      final options = await ios.checkPermissions();
-      return options != null &&
-          (options.isEnabled || options.isProvisionalEnabled);
+      return _applePermission(
+        request ? () => ios.requestPermissions(alert: true, sound: true) : null,
+        ios.checkPermissions,
+      );
     }
     final mac = _plugin
         .resolvePlatformSpecificImplementation<
           MacOSFlutterLocalNotificationsPlugin
         >();
     if (mac != null) {
-      if (request) await mac.requestPermissions(alert: true, sound: true);
-      final options = await mac.checkPermissions();
-      return options != null &&
-          (options.isEnabled || options.isProvisionalEnabled);
+      return _applePermission(
+        request ? () => mac.requestPermissions(alert: true, sound: true) : null,
+        mac.checkPermissions,
+      );
     }
     return true;
   }
 
+  Future<bool> _applePermission(
+    Future<bool?> Function()? request,
+    Future<NotificationsEnabledOptions?> Function() check,
+  ) async {
+    if (request != null) await request();
+    final options = await check();
+    return options != null &&
+        (options.isEnabled || options.isProvisionalEnabled);
+  }
+
   Future<void> _syncScheduled(List<MapReminder> plan, bool exact) async {
     final desired = {for (final reminder in plan) reminder.id: reminder};
+    await _removeChangedRequests(desired, exact);
+    for (final reminder in desired.values) {
+      await _schedule(reminder, exact);
+    }
+    final ids = plan.map((reminder) => reminder.id).toSet();
+    _applied.removeWhere((id, _) => !ids.contains(id));
+    _exact = exact;
+  }
+
+  Future<void> _removeChangedRequests(
+    Map<int, MapReminder> desired,
+    bool exact,
+  ) async {
     final pending = await _plugin.pendingNotificationRequests();
     for (final request in pending.where((item) => isMapReminderId(item.id))) {
       final reminder = desired[request.id];
@@ -132,27 +164,22 @@ class LocalRotationNotifications implements RotationNotifications {
         _applied.remove(request.id);
       }
     }
-    for (final reminder in desired.values) {
-      if (_disposed ||
-          !reminder.fireAt.isAfter(
-            DateTime.now().add(const Duration(seconds: 1)),
-          )) {
-        continue;
-      }
-      await _plugin.zonedSchedule(
-        id: reminder.id,
-        title: reminder.title,
-        body: reminder.body,
-        scheduledDate: tz.TZDateTime.from(reminder.fireAt, tz.UTC),
-        notificationDetails: _details,
-        androidScheduleMode: exact
-            ? AndroidScheduleMode.exactAllowWhileIdle
-            : AndroidScheduleMode.inexactAllowWhileIdle,
-      );
-      _applied[reminder.id] = reminder;
-    }
-    _applied.removeWhere((id, _) => !plan.any((reminder) => reminder.id == id));
-    _exact = exact;
+  }
+
+  Future<void> _schedule(MapReminder reminder, bool exact) async {
+    final earliest = DateTime.now().add(const Duration(seconds: 1));
+    if (_disposed || !reminder.fireAt.isAfter(earliest)) return;
+    await _plugin.zonedSchedule(
+      id: reminder.id,
+      title: reminder.title,
+      body: reminder.body,
+      scheduledDate: tz.TZDateTime.from(reminder.fireAt, tz.UTC),
+      notificationDetails: _details,
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+    _applied[reminder.id] = reminder;
   }
 
   void _syncTimers(List<MapReminder> plan) {

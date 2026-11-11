@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -96,22 +97,23 @@ UpgradeCatalog parseUpgradeCatalog((String, String) input) {
         (section) => section.querySelector('h2')?.text.trim() == 'Upgrades',
       )
       .firstOrNull;
-  final upgrades = <LegendUpgrade>[];
   if (section == null) throw const FormatException();
-  for (final card in section.querySelectorAll('.slab')) {
-    final name = card.querySelector('h3')?.text.trim();
-    final effect = card.querySelector('p')?.text.trim().replaceAll('%%', '%');
-    if (name != null &&
-        name.isNotEmpty &&
-        effect != null &&
-        effect.isNotEmpty) {
-      upgrades.add(LegendUpgrade(name, effect));
-    }
-  }
+  final upgrades = section
+      .querySelectorAll('.slab')
+      .map(_parseUpgrade)
+      .nonNulls
+      .toList();
   if (upgrades.isEmpty) throw const FormatException();
   final footer = document.querySelector('footer')?.text ?? '';
   final date = RegExp(r'updated\s+(\d{4}-\d{2}-\d{2})')
       .firstMatch(footer)
       ?.group(1);
   return UpgradeCatalog(date ?? '', upgrades);
+}
+
+LegendUpgrade? _parseUpgrade(Element card) {
+  final name = card.querySelector('h3')?.text.trim() ?? '';
+  final effect =
+      card.querySelector('p')?.text.trim().replaceAll('%%', '%') ?? '';
+  return name.isEmpty || effect.isEmpty ? null : LegendUpgrade(name, effect);
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../l10n/localization.dart';
 import '../design/apeh_design.dart';
@@ -8,89 +9,47 @@ import 'rotation_reminder_plan.dart';
 import 'rotation_reminders.dart';
 import 'rotation_time_zone.dart';
 import 'rotation_ui_text.dart';
-import 'rotation_view_model.dart';
+import 'rotation_cubit.dart';
 
 class RotationPage extends StatelessWidget {
-  const RotationPage({super.key, required this.model, this.updateAction});
+  const RotationPage({super.key, this.updateAction});
 
-  final RotationViewModel model;
   final Widget? updateAction;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([model, model.reminders]),
-    builder: (context, _) => _body(context),
-  );
+  Widget build(BuildContext context) {
+    final cubit = context.read<RotationCubit>();
+    final reminders = cubit.reminders;
+    return BlocBuilder<RotationCubit, RotationState>(
+      builder: (context, state) {
+        if (reminders == null) return _body(context, state, null);
+        return BlocBuilder<RotationReminders, ReminderState>(
+          bloc: reminders,
+          builder: (context, reminderState) =>
+              _body(context, state, reminderState),
+        );
+      },
+    );
+  }
 
-  Widget _body(BuildContext context) {
-    final snapshot = model.snapshot;
-    final zone = model.timeZone;
-    final reminders = model.reminders;
+  Widget _body(
+    BuildContext context,
+    RotationState state,
+    ReminderState? reminders,
+  ) {
     return ApehPage(
       title: context.strings.rotation,
       description: context.strings.rotationDescription,
-      actions: [
-        Tooltip(
-          message: context.strings.timeZone,
-          child: OutlinedButton.icon(
-            onPressed: model.canChangeTimeZone
-                ? () => _openTimeZoneDialog(context)
-                : null,
-            icon: const ApehIcon('clock', size: 17),
-            label: Text(zoneLabel(context, zone)),
-          ),
-        ),
-        if (reminders != null)
-          IconButton(
-            tooltip: context.strings.reminders,
-            style: reminders.settings.enabled
-                ? IconButton.styleFrom(backgroundColor: accent)
-                : null,
-            icon: ApehIcon(
-              'bell',
-              color: reminders.settings.enabled ? ink : null,
-            ),
-            onPressed: reminders.busy
-                ? null
-                : () => _openReminderDialog(context, reminders),
-          ),
-        IconButton(
-          tooltip: context.strings.refreshMaps,
-          onPressed: model.canRefresh ? model.refresh : null,
-          icon: const Icon(Icons.refresh),
-        ),
-        if (model.canLoad)
-          IconButton(
-            tooltip: context.strings.configureApiKey,
-            onPressed: model.canChangeKey
-                ? () => _openKeyDialog(context)
-                : null,
-            icon: Icon(model.hasKey ? Icons.key : Icons.key_outlined),
-          ),
-        ?updateAction,
-      ],
+      actions: _actions(context, state, reminders),
       children: [
-        Text(switch (snapshot) {
-          _ when model.demo => context.strings.demoSchedule,
-          final value? when model.fromCache => context.strings.cachedSchedule(
-            _scheduleTime(context, value.updatedAt, model.now, zone),
-          ),
-          final value? => context.strings.updatedSchedule(
-            _scheduleTime(context, value.updatedAt, model.now, zone),
-          ),
-          _ => 'Apex Legends Status',
-        }, style: TextStyle(color: context.colors.onSurfaceVariant)),
+        Text(
+          _source(context, state),
+          style: TextStyle(color: context.colors.onSurfaceVariant),
+        ),
         const SizedBox(height: 10),
-        if (model.loading) const LinearProgressIndicator(),
-        if (model.message case final message?)
-          _notice(rotationNotice(context, message), Icons.info_outline),
-        if (model.storageMessage case final message?)
-          _notice(rotationNotice(context, message), Icons.info_outline),
-        if (model.timeZoneMessage case final message?)
-          _notice(rotationNotice(context, message), Icons.info_outline),
-        if (reminders?.message case final message?)
-          _notice(rotationNotice(context, message), Icons.notifications_none),
-        if (!model.canLoad && !model.demo) ...[
+        if (state.loading) const LinearProgressIndicator(),
+        ..._notices(context, state, reminders),
+        if (!state.canLoad && !state.schedule.demo) ...[
           _notice(
             context.strings.nativeSchedule,
             Icons.desktop_windows_outlined,
@@ -98,46 +57,96 @@ class RotationPage extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton(
-              onPressed: model.showDemo,
+              onPressed: context.read<RotationCubit>().showDemo,
               child: Text(context.strings.openDemo),
             ),
           ),
           const SizedBox(height: 16),
         ],
-        if (model.loading) const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const gap = 14.0;
-            final width = constraints.maxWidth >= 670
-                ? (constraints.maxWidth - gap) / 2
-                : constraints.maxWidth;
-            return Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              children: [
-                for (final mode in Playlist.values)
-                  SizedBox(
-                    width: width,
-                    child: _MapCard(
-                      mode: mode,
-                      rotation: snapshot?.playlists[mode],
-                      now: model.now,
-                      timeZone: zone,
-                      emptyMessage: _emptyMessage(context, snapshot),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
+        if (state.loading) const SizedBox(height: 12),
+        _MapGrid(state: state),
       ],
     );
   }
 
-  String _emptyMessage(BuildContext context, RotationSnapshot? snapshot) {
-    if (snapshot != null) return context.strings.noScheduleFromSource;
-    if (model.loading) return context.strings.loadingSchedule;
-    return context.strings.scheduleUnavailable;
+  List<Widget> _actions(
+    BuildContext context,
+    RotationState state,
+    ReminderState? reminders,
+  ) {
+    return [
+      Tooltip(
+        message: context.strings.timeZone,
+        child: OutlinedButton.icon(
+          onPressed: state.zone.changing
+              ? null
+              : () => _openTimeZoneDialog(context, state),
+          icon: const ApehIcon('clock', size: 17),
+          label: Text(zoneLabel(context, state.zone.value)),
+        ),
+      ),
+      if (reminders != null) _reminderButton(context, reminders),
+      IconButton(
+        tooltip: context.strings.refreshMaps,
+        onPressed: state.canRefresh
+            ? context.read<RotationCubit>().refresh
+            : null,
+        icon: const Icon(Icons.refresh),
+      ),
+      if (state.canLoad)
+        IconButton(
+          tooltip: context.strings.configureApiKey,
+          onPressed: state.canRefresh
+              ? () => _openKeyDialog(context, state.key.present)
+              : null,
+          icon: Icon(state.key.present ? Icons.key : Icons.key_outlined),
+        ),
+      ?updateAction,
+    ];
+  }
+
+  Widget _reminderButton(BuildContext context, ReminderState state) =>
+      IconButton(
+        tooltip: context.strings.reminders,
+        style: state.settings.enabled
+            ? IconButton.styleFrom(backgroundColor: accent)
+            : null,
+        icon: ApehIcon('bell', color: state.settings.enabled ? ink : null),
+        onPressed: state.busy
+            ? null
+            : () => _openReminderDialog(context, state.settings),
+      );
+
+  String _source(BuildContext context, RotationState state) {
+    if (state.schedule.demo) return context.strings.demoSchedule;
+    final snapshot = state.schedule.snapshot;
+    if (snapshot == null) return 'Apex Legends Status';
+    final updated = _scheduleTime(
+      context,
+      snapshot.updatedAt,
+      state.now,
+      state.zone.value,
+    );
+    return state.schedule.fromCache
+        ? context.strings.cachedSchedule(updated)
+        : context.strings.updatedSchedule(updated);
+  }
+
+  Iterable<Widget> _notices(
+    BuildContext context,
+    RotationState state,
+    ReminderState? reminders,
+  ) sync* {
+    for (final message in [
+      state.schedule.message,
+      state.key.message,
+      state.zone.message,
+    ].nonNulls) {
+      yield _notice(rotationNotice(context, message), Icons.info_outline);
+    }
+    if (reminders?.message case final message?) {
+      yield _notice(rotationNotice(context, message), Icons.notifications_none);
+    }
   }
 
   Widget _notice(String message, IconData icon) => Card(
@@ -145,33 +154,81 @@ class RotationPage extends StatelessWidget {
     child: ListTile(leading: Icon(icon), title: Text(message)),
   );
 
-  Future<void> _openKeyDialog(BuildContext context) async {
+  Future<void> _openKeyDialog(BuildContext context, bool hasKey) async {
     final key = await showDialog<String>(
       context: context,
-      builder: (_) => _KeyDialog(hasKey: model.hasKey),
+      builder: (_) => _KeyDialog(hasKey: hasKey),
     );
     if (context.mounted && key != null) {
-      await model.setKey(key.isEmpty ? null : key);
+      await context.read<RotationCubit>().setKey(key.isEmpty ? null : key);
     }
   }
 
-  Future<void> _openTimeZoneDialog(BuildContext context) async {
+  Future<void> _openTimeZoneDialog(
+    BuildContext context,
+    RotationState state,
+  ) async {
     final zone = await showDialog<RotationTimeZone>(
       context: context,
-      builder: (_) => _TimeZoneDialog(selected: model.timeZone, now: model.now),
+      builder: (_) =>
+          _TimeZoneDialog(selected: state.zone.value, now: state.now),
     );
-    if (context.mounted && zone != null) await model.setTimeZone(zone);
+    if (context.mounted && zone != null) {
+      await context.read<RotationCubit>().setTimeZone(zone);
+    }
   }
 
   Future<void> _openReminderDialog(
     BuildContext context,
-    RotationReminders reminders,
+    RotationReminderSettings settings,
   ) async {
+    final reminders = context.read<RotationCubit>().reminders!;
     final value = await showDialog<RotationReminderSettings>(
       context: context,
-      builder: (_) => RotationReminderDialog(settings: reminders.settings),
+      builder: (_) => RotationReminderDialog(settings: settings),
     );
     if (context.mounted && value != null) await reminders.save(value);
+  }
+}
+
+class _MapGrid extends StatelessWidget {
+  const _MapGrid({required this.state});
+
+  final RotationState state;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      const gap = 14.0;
+      final width = constraints.maxWidth >= 670
+          ? (constraints.maxWidth - gap) / 2
+          : constraints.maxWidth;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          for (final mode in Playlist.values)
+            SizedBox(
+              width: width,
+              child: _MapCard(
+                mode: mode,
+                rotation: state.schedule.snapshot?.playlists[mode],
+                now: state.now,
+                timeZone: state.zone.value,
+                emptyMessage: _emptyMessage(context),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+
+  String _emptyMessage(BuildContext context) {
+    if (state.schedule.snapshot != null) {
+      return context.strings.noScheduleFromSource;
+    }
+    if (state.loading) return context.strings.loadingSchedule;
+    return context.strings.scheduleUnavailable;
   }
 }
 
